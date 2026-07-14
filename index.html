@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1220">
+<title>Baby Sleep</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: #0f1220; color: #e8e6f0;
+    display: flex; flex-direction: column;
+    padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+    gap: 14px;
+  }
+  h1 { font-size: 1.15rem; font-weight: 600; text-align: center; color: #b8b4d0; padding: 8px 0; }
+  button {
+    border: none; border-radius: 20px; width: 100%;
+    font-size: 1.25rem; font-weight: 600; font-family: inherit;
+    color: inherit; cursor: pointer; touch-action: manipulation;
+  }
+  button:active { transform: scale(0.97); }
+  .big { flex: 1; min-height: 110px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+  .big .emoji { font-size: 2.6rem; }
+  #sleep { background: #223055; }
+  #feed { background: #4a2f55; }
+  #reportBtn { background: #1c2438; min-height: 64px; font-size: 1.1rem; color: #b8b4d0; }
+  #undo { background: none; min-height: 44px; font-size: 0.9rem; color: #6f6a8a; font-weight: 400; }
+  #toast {
+    position: fixed; left: 50%; top: 14px; transform: translateX(-50%);
+    background: #2e7d5b; color: #fff; padding: 10px 22px; border-radius: 999px;
+    font-size: 1rem; opacity: 0; transition: opacity .25s; pointer-events: none; white-space: nowrap;
+  }
+  #toast.show { opacity: 1; }
+  #report { display: none; flex: 1; overflow-y: auto; background: #171b2e; border-radius: 20px; padding: 18px; }
+  #report h2 { font-size: 1rem; color: #b8b4d0; margin-bottom: 12px; }
+  .summary { display: flex; gap: 10px; margin-bottom: 16px; }
+  .stat { flex: 1; background: #222741; border-radius: 14px; padding: 12px; text-align: center; }
+  .stat .num { font-size: 1.7rem; font-weight: 700; }
+  .stat .label { font-size: 0.8rem; color: #8d88a8; margin-top: 2px; }
+  .event { display: flex; align-items: center; gap: 12px; padding: 10px 4px; border-bottom: 1px solid #232841; font-size: 1rem; }
+  .event:last-child { border-bottom: none; }
+  .event .t { color: #8d88a8; font-variant-numeric: tabular-nums; min-width: 52px; }
+  .empty { color: #6f6a8a; text-align: center; padding: 24px 0; }
+</style>
+</head>
+<body>
+  <h1>🌙 Baby Sleep Tracker</h1>
+  <div id="toast"></div>
+
+  <div id="buttons" style="display:flex;flex-direction:column;gap:14px;flex:1;">
+    <button class="big" id="sleep" onclick="log('woke_slept')">
+      <span class="emoji">😴</span><span>Woke up &amp; back to sleep</span>
+    </button>
+    <button class="big" id="feed" onclick="log('breastfed')">
+      <span class="emoji">🤱</span><span>Woke up &amp; breastfed</span>
+    </button>
+    <button id="undo" onclick="undo()">↩︎ Undo last</button>
+  </div>
+
+  <div id="report"></div>
+  <button id="reportBtn" onclick="toggleReport()">📋 Night report</button>
+
+<script>
+const base = "https://uwweesqirduxjgaptjyq.supabase.co/functions/v1/app";
+let showingReport = false;
+
+function toast(msg, err) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.style.background = err ? "#8a3a3a" : "#2e7d5b";
+  t.classList.add("show");
+  clearTimeout(t._h);
+  t._h = setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+async function log(type) {
+  try {
+    const r = await fetch(base + "/api/event", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type }),
+    });
+    const d = await r.json();
+    if (!d.ok) throw 0;
+    toast((type === "breastfed" ? "🤱 Feed" : "😴 Wake-up") + " logged at " + d.time);
+  } catch { toast("Failed — try again", true); }
+}
+
+async function undo() {
+  try {
+    const r = await fetch(base + "/api/undo", { method: "POST" });
+    const d = await r.json();
+    toast(d.ok ? "Removed " + (d.undone === "breastfed" ? "feed" : "wake-up") + " (" + d.time + ")" : "Nothing to undo", !d.ok);
+  } catch { toast("Failed — try again", true); }
+}
+
+async function toggleReport() {
+  const rep = document.getElementById("report");
+  const btns = document.getElementById("buttons");
+  showingReport = !showingReport;
+  if (!showingReport) {
+    rep.style.display = "none"; btns.style.display = "flex";
+    document.getElementById("reportBtn").textContent = "📋 Night report";
+    return;
+  }
+  btns.style.display = "none"; rep.style.display = "block";
+  document.getElementById("reportBtn").textContent = "← Back";
+  rep.innerHTML = '<div class="empty">Loading…</div>';
+  try {
+    const d = await (await fetch(base + "/api/report")).json();
+    let html = '<h2>Tonight (since ' + d.nightStart + ')</h2>' +
+      '<div class="summary">' +
+      '<div class="stat"><div class="num">' + d.wakeUps + '</div><div class="label">😴 wake-ups</div></div>' +
+      '<div class="stat"><div class="num">' + d.feeds + '</div><div class="label">🤱 feeds</div></div>' +
+      '</div>';
+    if (!d.events.length) {
+      html += '<div class="empty">Quiet night so far 🎉</div>';
+    } else {
+      for (const e of d.events) {
+        html += '<div class="event"><span class="t">' + e.time + '</span><span>' +
+          (e.type === "breastfed" ? "🤱 Breastfed" : "😴 Back to sleep") + '</span></div>';
+      }
+    }
+    rep.innerHTML = html;
+  } catch { rep.innerHTML = '<div class="empty">Failed to load report</div>'; }
+}
+</script>
+</body>
+</html>
