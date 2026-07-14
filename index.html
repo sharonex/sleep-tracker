@@ -22,27 +22,42 @@
     color: inherit; cursor: pointer; touch-action: manipulation;
   }
   button:active { transform: scale(0.97); }
-  .big { flex: 1; min-height: 110px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+  .big { flex: 1; min-height: 100px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
   .big .emoji { font-size: 2.6rem; }
   #sleep { background: #223055; }
   #feed { background: #4a2f55; }
+  #bedtime { background: #1e3a34; min-height: 64px; font-size: 1.1rem; }
   #reportBtn { background: #1c2438; min-height: 64px; font-size: 1.1rem; color: #b8b4d0; }
   #undo { background: none; min-height: 44px; font-size: 0.9rem; color: #6f6a8a; font-weight: 400; }
   #toast {
     position: fixed; left: 50%; top: 14px; transform: translateX(-50%);
     background: #2e7d5b; color: #fff; padding: 10px 22px; border-radius: 999px;
-    font-size: 1rem; opacity: 0; transition: opacity .25s; pointer-events: none; white-space: nowrap;
+    font-size: 1rem; opacity: 0; transition: opacity .25s; pointer-events: none; white-space: nowrap; z-index: 10;
   }
   #toast.show { opacity: 1; }
   #report { display: none; flex: 1; overflow-y: auto; background: #171b2e; border-radius: 20px; padding: 18px; }
   #report h2 { font-size: 1rem; color: #b8b4d0; margin-bottom: 12px; }
-  .summary { display: flex; gap: 10px; margin-bottom: 16px; }
-  .stat { flex: 1; background: #222741; border-radius: 14px; padding: 12px; text-align: center; }
-  .stat .num { font-size: 1.7rem; font-weight: 700; }
-  .stat .label { font-size: 0.8rem; color: #8d88a8; margin-top: 2px; }
-  .event { display: flex; align-items: center; gap: 12px; padding: 10px 4px; border-bottom: 1px solid #232841; font-size: 1rem; }
+  .summary { display: flex; gap: 8px; margin-bottom: 16px; }
+  .stat { flex: 1; background: #222741; border-radius: 14px; padding: 12px 6px; text-align: center; }
+  .stat .num { font-size: 1.5rem; font-weight: 700; }
+  .stat .label { font-size: 0.75rem; color: #8d88a8; margin-top: 2px; }
+  .event { display: flex; align-items: center; gap: 10px; padding: 8px 2px; border-bottom: 1px solid #232841; font-size: 1rem; }
   .event:last-child { border-bottom: none; }
   .event .t { color: #8d88a8; font-variant-numeric: tabular-nums; min-width: 52px; }
+  .event .lbl { flex: 1; }
+  .icon-btn {
+    width: 40px; min-width: 40px; height: 40px; border-radius: 12px;
+    background: #222741; font-size: 1rem; display: flex; align-items: center; justify-content: center;
+  }
+  .icon-btn.danger { color: #d98a8a; }
+  input[type="time"], select {
+    background: #222741; color: #e8e6f0; border: 1px solid #363c5e; border-radius: 10px;
+    font-family: inherit; font-size: 1rem; padding: 8px; min-height: 40px;
+    color-scheme: dark;
+  }
+  .addrow { display: flex; gap: 8px; align-items: center; margin-top: 14px; }
+  .addrow select { flex: 1; min-width: 0; }
+  #addBtn { background: none; min-height: 44px; font-size: 0.95rem; color: #6f6a8a; font-weight: 400; margin-top: 10px; }
   .empty { color: #6f6a8a; text-align: center; padding: 24px 0; }
 </style>
 </head>
@@ -57,6 +72,7 @@
     <button class="big" id="feed" onclick="log('breastfed')">
       <span class="emoji">🤱</span><span>Woke up &amp; breastfed</span>
     </button>
+    <button id="bedtime" onclick="log('fell_asleep')">🛌 Went to sleep</button>
     <button id="undo" onclick="undo()">↩︎ Undo last</button>
   </div>
 
@@ -65,6 +81,11 @@
 
 <script>
 const base = "https://uwweesqirduxjgaptjyq.supabase.co/functions/v1/app";
+const LABELS = {
+  woke_slept: "😴 Back to sleep",
+  breastfed: "🤱 Breastfed",
+  fell_asleep: "🛌 Fell asleep",
+};
 let showingReport = false;
 
 function toast(msg, err) {
@@ -76,24 +97,33 @@ function toast(msg, err) {
   t._h = setTimeout(() => t.classList.remove("show"), 2200);
 }
 
+function nowIsraelHHMM() {
+  return new Date().toLocaleTimeString("en-GB", {
+    timeZone: "Asia/Jerusalem", hour: "2-digit", minute: "2-digit",
+  });
+}
+
+async function api(path, opts) {
+  const r = await fetch(base + path, opts);
+  return r.json();
+}
+
 async function log(type) {
   try {
-    const r = await fetch(base + "/api/event", {
+    const d = await api("/api/event", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type }),
     });
-    const d = await r.json();
     if (!d.ok) throw 0;
-    toast((type === "breastfed" ? "🤱 Feed" : "😴 Wake-up") + " logged at " + d.time);
+    toast(LABELS[type] + " · " + d.time);
   } catch { toast("Failed — try again", true); }
 }
 
 async function undo() {
   try {
-    const r = await fetch(base + "/api/undo", { method: "POST" });
-    const d = await r.json();
-    toast(d.ok ? "Removed " + (d.undone === "breastfed" ? "feed" : "wake-up") + " (" + d.time + ")" : "Nothing to undo", !d.ok);
+    const d = await api("/api/undo", { method: "POST" });
+    toast(d.ok ? "Removed: " + LABELS[d.undone] + " (" + d.time + ")" : "Nothing to undo", !d.ok);
   } catch { toast("Failed — try again", true); }
 }
 
@@ -108,24 +138,100 @@ async function toggleReport() {
   }
   btns.style.display = "none"; rep.style.display = "block";
   document.getElementById("reportBtn").textContent = "← Back";
+  loadReport();
+}
+
+async function loadReport() {
+  const rep = document.getElementById("report");
   rep.innerHTML = '<div class="empty">Loading…</div>';
   try {
-    const d = await (await fetch(base + "/api/report")).json();
+    const d = await api("/api/report");
     let html = '<h2>Tonight (since ' + d.nightStart + ')</h2>' +
       '<div class="summary">' +
+      '<div class="stat"><div class="num">' + (d.bedtime || "—") + '</div><div class="label">🛌 asleep at</div></div>' +
       '<div class="stat"><div class="num">' + d.wakeUps + '</div><div class="label">😴 wake-ups</div></div>' +
       '<div class="stat"><div class="num">' + d.feeds + '</div><div class="label">🤱 feeds</div></div>' +
-      '</div>';
+      '</div><div id="events">';
     if (!d.events.length) {
       html += '<div class="empty">Quiet night so far 🎉</div>';
     } else {
-      for (const e of d.events) {
-        html += '<div class="event"><span class="t">' + e.time + '</span><span>' +
-          (e.type === "breastfed" ? "🤱 Breastfed" : "😴 Back to sleep") + '</span></div>';
-      }
+      for (const e of d.events) html += eventRow(e);
     }
+    html += '</div>' +
+      '<button id="addBtn" onclick="showAdd()">＋ Add missed event</button>' +
+      '<div id="addForm"></div>';
     rep.innerHTML = html;
   } catch { rep.innerHTML = '<div class="empty">Failed to load report</div>'; }
+}
+
+function eventRow(e) {
+  return '<div class="event" id="ev' + e.id + '">' +
+    '<span class="t">' + e.time + '</span>' +
+    '<span class="lbl">' + LABELS[e.type] + '</span>' +
+    '<button class="icon-btn" onclick="editEvent(' + e.id + ',\'' + e.time + '\',\'' + e.type + '\')">✏️</button>' +
+    '<button class="icon-btn danger" onclick="delEvent(' + e.id + ')">✕</button>' +
+    '</div>';
+}
+
+function editEvent(id, time, type) {
+  document.getElementById("ev" + id).innerHTML =
+    '<input type="time" id="t' + id + '" value="' + time + '">' +
+    '<span class="lbl">' + LABELS[type] + '</span>' +
+    '<button class="icon-btn" onclick="saveEvent(' + id + ')">✓</button>' +
+    '<button class="icon-btn" onclick="loadReport()">✕</button>';
+}
+
+async function saveEvent(id) {
+  const time = document.getElementById("t" + id).value;
+  if (!time) return;
+  try {
+    const d = await api("/api/event/" + id, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ time }),
+    });
+    if (!d.ok) throw 0;
+    toast("Updated to " + d.time);
+  } catch { toast("Failed — try again", true); }
+  loadReport();
+}
+
+async function delEvent(id) {
+  try {
+    await api("/api/event/" + id, { method: "DELETE" });
+    toast("Deleted");
+  } catch { toast("Failed — try again", true); }
+  loadReport();
+}
+
+function showAdd() {
+  document.getElementById("addBtn").style.display = "none";
+  document.getElementById("addForm").innerHTML =
+    '<div class="addrow">' +
+    '<select id="addType">' +
+    '<option value="woke_slept">😴 Back to sleep</option>' +
+    '<option value="breastfed">🤱 Breastfed</option>' +
+    '<option value="fell_asleep">🛌 Fell asleep</option>' +
+    '</select>' +
+    '<input type="time" id="addTime" value="' + nowIsraelHHMM() + '">' +
+    '<button class="icon-btn" onclick="saveAdd()">✓</button>' +
+    '</div>';
+}
+
+async function saveAdd() {
+  const type = document.getElementById("addType").value;
+  const time = document.getElementById("addTime").value;
+  if (!time) return;
+  try {
+    const d = await api("/api/event", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type, time }),
+    });
+    if (!d.ok) throw 0;
+    toast(LABELS[type] + " added at " + d.time);
+  } catch { toast("Failed — try again", true); }
+  loadReport();
 }
 </script>
 </body>
