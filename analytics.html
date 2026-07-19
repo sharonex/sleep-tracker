@@ -99,9 +99,9 @@
 "use strict";
 const base = "https://uwweesqirduxjgaptjyq.supabase.co/functions/v1/app";
 const TZ = "Asia/Jerusalem";
-const NIGHT_START = 17;
-const NAP_BOUNDARY = 15 * 60;          // sleep starting after 08:00 Israel (offset 900) = nap
-const MORNING_MIN = 12 * 60;           // a final wake at/after 05:00 counts as the morning wake
+const DAY_START = 8;                   // a tracked day runs 08:00 -> 08:00 Israel time
+const NIGHT_MIN = 9 * 60;              // offset of 17:00 — sleep starting earlier = nap, later = night
+const MORNING_MIN = 21 * 60;           // a final wake at/after 05:00 counts as the morning wake
 const EMOJI = { breastfed: "🤱", bottle: "🍼", solid_food: "🍽️", pain_med: "💊" };
 const NAMES = { breastfed: "Breastfed", bottle: "Bottle", solid_food: "Solid food", pain_med: "Pain meds", woke_up: "Woke up", woke_slept: "Back to sleep", fell_asleep: "Fell asleep" };
 
@@ -120,15 +120,15 @@ function shiftDate(dateStr, days) {
   return d.toISOString().slice(0, 10);
 }
 function pad(n) { return String(n).padStart(2, "0"); }
-function nightOf(parts) {
+function dayOf(parts) {
   const ds = `${parts.y}-${pad(parts.m)}-${pad(parts.d)}`;
-  return parts.hh >= NIGHT_START ? ds : shiftDate(ds, -1);
+  return parts.hh >= DAY_START ? ds : shiftDate(ds, -1);
 }
 function offsetOf(parts) {
-  return ((parts.hh - NIGHT_START + 24) % 24) * 60 + parts.mm;
+  return ((parts.hh - DAY_START + 24) % 24) * 60 + parts.mm;
 }
 function minToClock(min) {
-  const h = (NIGHT_START + Math.floor(min / 60)) % 24;
+  const h = (DAY_START + Math.floor(min / 60)) % 24;
   return pad(h) + ":" + pad(Math.round(min % 60));
 }
 function durFmt(min) {
@@ -164,34 +164,31 @@ function deriveNight(date, evs, isCurrent, nowOffset) {
   let openSeg = null;
   if (open) {
     if (isCurrent) segs.push({ start: open.start, end: Math.max(open.start, nowOffset), ongoing: true });
-    else openSeg = { start: open.start, end: Math.min(NAP_BOUNDARY, 1440) };
+    else openSeg = { start: open.start, end: 1440 };
   }
-  for (const s of segs) s.nap = s.start >= NAP_BOUNDARY;
+  for (const s of segs) s.nap = s.start < NIGHT_MIN;
   const nightSegs = segs.filter(s => !s.nap);
-  // a "night sleep" running past 09:30 almost certainly means the morning wake wasn't logged
-  for (const s of nightSegs) if (s.end > NAP_BOUNDARY + 90) s.unknownEnd = true;
 
-  const firstSleep = evs.find(e => e.type === "fell_asleep");
+  const firstSleep = evs.find(e => e.type === "fell_asleep" && e.min >= NIGHT_MIN);
   const bedtimeMin = nightSegs.length ? nightSegs[0].start : (firstSleep ? firstSleep.min : null);
 
   const lastNight = nightSegs[nightSegs.length - 1];
   let morningWake = null;
-  if (lastNight && !lastNight.ongoing && !lastNight.unknownEnd && lastNight.end >= MORNING_MIN) morningWake = lastNight.end;
+  if (lastNight && !lastNight.ongoing && lastNight.end >= MORNING_MIN) morningWake = lastNight.end;
 
-  const nightEnd = morningWake ?? NAP_BOUNDARY;
+  const nightEnd = morningWake ?? 1440;
   const wakes = evs.filter(e => e.type === "woke_up" || e.type === "woke_slept");
   const wakeUps = wakes.filter(e =>
-    (bedtimeMin === null || e.min > bedtimeMin) && e.min < nightEnd
+    e.min > (bedtimeMin ?? NIGHT_MIN) && e.min < nightEnd
   ).length;
 
-  const known = nightSegs.filter(s => !s.unknownEnd);
-  const longestStretch = known.length ? Math.max(...known.map(s => s.end - s.start)) : null;
+  const longestStretch = nightSegs.length ? Math.max(...nightSegs.map(s => s.end - s.start)) : null;
   const totalNightSleep = morningWake !== null && !openSeg
-    ? known.reduce((a, s) => a + (s.end - s.start), 0) : null;
+    ? nightSegs.reduce((a, s) => a + (s.end - s.start), 0) : null;
 
-  const feeds = evs.filter(e => e.type === "breastfed" && e.min < nightEnd).length;
+  const feeds = evs.filter(e => e.type === "breastfed" && e.min >= NIGHT_MIN && e.min < nightEnd).length;
   const bottles = evs.filter(e => e.type === "bottle").length;
-  const solid = evs.find(e => e.type === "solid_food") || null;
+  const solid = evs.find(e => e.type === "solid_food" && e.min >= NIGHT_MIN) || null;
   const meds = evs.filter(e => e.type === "pain_med");
 
   return {
@@ -212,14 +209,14 @@ async function loadData() {
     const d = await r.json();
     if (!d.events) throw 0;
     const nowP = israelParts(new Date());
-    state.currentNight = d.currentNight || nightOf(nowP);
+    state.currentNight = d.currentNight || dayOf(nowP);
     state.nowOffset = offsetOf(nowP);
     for (const n of d.notes || []) state.notes.set(n.night_date, n.note || "");
 
     const grouped = new Map();
     for (const ev of d.events) {
       const p = israelParts(new Date(ev.created_at));
-      const night = nightOf(p);
+      const night = dayOf(p);
       if (!grouped.has(night)) grouped.set(night, []);
       grouped.get(night).push({ type: ev.event_type, min: offsetOf(p), time: minToClock(offsetOf(p)), note: ev.note || "" });
     }
@@ -312,8 +309,8 @@ function render() {
   app.appendChild(filterRow());
   app.appendChild(tilesEl(statNights(rows), statNights(prev)));
 
-  app.appendChild(card("night-timeline", "Nights at a glance",
-    "17:00 → 17:00 · dark blue = night sleep, light blue = naps · gaps = awake"));
+  app.appendChild(card("night-timeline", "Days at a glance",
+    "08:00 → 08:00 · dark blue = night sleep, light blue = naps · gaps = awake"));
   app.appendChild(card("chart-wakes", "Wake-ups per night", "wakes between falling asleep and the morning wake"));
   app.appendChild(card("chart-stretch", "Longest sleep stretch", "longest unbroken night sleep, in hours"));
   app.appendChild(card("chart-bedtime", "Bedtime", "when the first night sleep started"));
@@ -329,7 +326,7 @@ function render() {
 
   const foot = document.createElement("div");
   foot.className = "foot";
-  foot.textContent = "How it’s computed: a night runs 17:00→17:00 (Israel time). Sleep starting before 08:00 is night sleep; later is a nap. The last wake after 05:00 is the morning wake. Sleep with no logged end is drawn faded and skipped in stretch averages; total night sleep is only counted when the morning wake was logged. Tonight joins the averages once its morning wake is logged.";
+  foot.textContent = "How it’s computed: a day runs 08:00→08:00 (Israel time). Sleep starting before 17:00 is a nap; later is night sleep. The last wake after 05:00 is the morning wake. Sleep with no logged end is drawn faded and skipped in stretch averages; total night sleep is only counted when the morning wake was logged. Today joins the averages once its morning wake is logged.";
   app.appendChild(foot);
 
   renderTimeline(rows);
@@ -421,7 +418,7 @@ function renderTimeline(rows) {
 
   nights.forEach((n, i) => {
     const y = top + i * rowH, cy = y + rowH / 2;
-    txt(svg, plotX - 8, cy + 3.5, n.isCurrent ? "Tonight" : dateLabel(n.date), {
+    txt(svg, plotX - 8, cy + 3.5, n.isCurrent ? "Today" : dateLabel(n.date), {
       "text-anchor": "end", fill: n.isCurrent ? "var(--ink2)" : "var(--muted)", "font-size": 10.5,
     });
     if (n.empty) {
@@ -434,7 +431,7 @@ function renderTimeline(rows) {
       S("rect", {
         x: x1, y: by, width: x2 - x1, height: barH, rx: 4,
         fill: s.nap ? "var(--nap)" : "var(--sleep)",
-        opacity: s.unknownEnd ? 0.3 : s.ongoing ? 0.85 : 1,
+        opacity: s.ongoing ? 0.85 : 1,
       }, svg);
     }
     if (n.openSeg) {
@@ -495,7 +492,7 @@ function dateTicks(svg, rows, cx, y) {
   const every = Math.max(1, Math.ceil(rows.length / 7));
   rows.forEach((n, i) => {
     if (i % every === 0 || n.isCurrent) {
-      txt(svg, cx(i), y, n.isCurrent ? "tonight" : dateLabel(n.date).replace(/^\w+ /, ""), { "text-anchor": "middle", "font-size": 9.5 });
+      txt(svg, cx(i), y, n.isCurrent ? "today" : dateLabel(n.date).replace(/^\w+ /, ""), { "text-anchor": "middle", "font-size": 9.5 });
     }
   });
 }
@@ -522,7 +519,7 @@ function renderWakes(rows) {
     const hit = S("rect", { x: cx(i) - step / 2, y: top, width: step, height: plotH + bottom, fill: "transparent" }, svg);
     hit.addEventListener("pointermove", evt => {
       bar.setAttribute("fill", "var(--sleep-hover)");
-      showTip(evt, n.isCurrent ? "Tonight" : dateLabel(n.date, true),
+      showTip(evt, n.isCurrent ? "Today" : dateLabel(n.date, true),
         [["Wake-ups", String(n.wakeUps) + (usable ? "" : " (incomplete)")]]);
     });
     hit.addEventListener("pointerleave", () => { bar.setAttribute("fill", "var(--sleep)"); hideTip(); });
@@ -574,7 +571,7 @@ function lineChart(mountId, rows, get, fmtV, yTicks, yLabel) {
     cross.setAttribute("visibility", "visible");
     focus.setAttribute("cx", dots[best].x); focus.setAttribute("cy", dots[best].y);
     focus.setAttribute("visibility", "visible");
-    showTip(evt, rows[best].isCurrent ? "Tonight" : dateLabel(rows[best].date, true), [[fmtV.label, fmtV.fmt(vals[best])]]);
+    showTip(evt, rows[best].isCurrent ? "Today" : dateLabel(rows[best].date, true), [[fmtV.label, fmtV.fmt(vals[best])]]);
   });
   overlay.addEventListener("pointerleave", () => {
     cross.setAttribute("visibility", "hidden"); focus.setAttribute("visibility", "hidden"); hideTip();
@@ -700,7 +697,7 @@ function renderTable(nights) {
   for (const n of [...nights].reverse()) {
     const r = body.insertRow();
     const cells = [
-      n.isCurrent ? "Tonight" : dateLabel(n.date, true),
+      n.isCurrent ? "Today" : dateLabel(n.date, true),
       n.bedtimeMin !== null ? minToClock(n.bedtimeMin) : "—",
       n.morningWake !== null ? minToClock(n.morningWake) : "—",
       String(n.wakeUps),

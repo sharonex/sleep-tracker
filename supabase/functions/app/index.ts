@@ -3,7 +3,8 @@ const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const REST = `${SUPABASE_URL}/rest/v1/sleep_events`;
 const NOTES_REST = `${SUPABASE_URL}/rest/v1/night_notes`;
 const TZ = "Asia/Jerusalem";
-const NIGHT_START_HOUR = 17;
+const DAY_START_HOUR = 8; // a tracked day runs 08:00 -> 08:00 Israel time
+const NIGHT_HOUR = 17; // 17:00 -> 08:00 is the night portion, used for the report stats
 const EVENT_TYPES = ["woke_slept", "breastfed", "fell_asleep", "woke_up", "solid_food", "bottle", "pain_med"];
 const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
@@ -25,34 +26,34 @@ function tzOffsetMs(date: Date): number {
   return local.getTime() - utc.getTime();
 }
 
-// Israel calendar date (YYYY-MM-DD) on which the current night started:
-// today if we're past 17:00 Israel time, otherwise yesterday
-function currentNightDate(): string {
+// Israel calendar date (YYYY-MM-DD) of the current tracked day:
+// today if we're past 08:00 Israel time, otherwise yesterday
+function currentDayDate(): string {
   const now = new Date();
   const israelNow = new Date(now.getTime() + tzOffsetMs(now));
-  if (israelNow.getUTCHours() < NIGHT_START_HOUR) {
+  if (israelNow.getUTCHours() < DAY_START_HOUR) {
     israelNow.setUTCDate(israelNow.getUTCDate() - 1);
   }
   return israelNow.toISOString().slice(0, 10);
 }
 
-// 17:00 Israel time on the given date -> UTC instant
-function nightStartOf(dateStr: string): Date | null {
+// 08:00 Israel time on the given date -> UTC instant
+function dayStartOf(dateStr: string): Date | null {
   const m = DATE_RE.exec(dateStr);
   if (!m) return null;
-  const naive = Date.UTC(+m[1], +m[2] - 1, +m[3], NIGHT_START_HOUR);
+  const naive = Date.UTC(+m[1], +m[2] - 1, +m[3], DAY_START_HOUR);
   return new Date(naive - tzOffsetMs(new Date(naive)));
 }
 
-// "HH:MM" Israel time within the given night -> UTC instant.
-// Hours past the night-start hour belong to the night's first calendar day, earlier hours to the next.
-function parseNightTime(hhmm: string, dateStr: string): Date | null {
+// "HH:MM" Israel time within the given tracked day -> UTC instant.
+// Hours past the day-start hour belong to the day's first calendar date, earlier hours to the next.
+function parseDayTime(hhmm: string, dateStr: string): Date | null {
   const m = /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(hhmm ?? "");
   const d = DATE_RE.exec(dateStr);
   if (!m || !d) return null;
   const hh = +m[1], mm = +m[2];
   let day = +d[3];
-  if (hh < NIGHT_START_HOUR) day += 1;
+  if (hh < DAY_START_HOUR) day += 1;
   const naive = Date.UTC(+d[1], +d[2] - 1, day, hh, mm);
   return new Date(naive - tzOffsetMs(new Date(naive)));
 }
@@ -63,6 +64,10 @@ function israelTime(iso: string): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function israelHour(iso: string): number {
+  return +israelTime(iso).slice(0, 2);
 }
 
 function json(body: unknown, status = 200): Response {
@@ -76,7 +81,7 @@ async function addEvent(type: string, time?: string, date?: string, note?: strin
   if (!EVENT_TYPES.includes(type)) return json({ error: "bad event type" }, 400);
   const row: Record<string, string> = { event_type: type };
   if (time !== undefined) {
-    const at = parseNightTime(time, date ?? currentNightDate());
+    const at = parseDayTime(time, date ?? currentDayDate());
     if (!at) return json({ error: "bad time, expected HH:MM" }, 400);
     row.created_at = at.toISOString();
   }
@@ -93,7 +98,7 @@ async function addEvent(type: string, time?: string, date?: string, note?: strin
 async function updateEvent(id: string, time?: string, date?: string, note?: string): Promise<Response> {
   const patch: Record<string, string | null> = {};
   if (time !== undefined) {
-    const at = parseNightTime(time, date ?? currentNightDate());
+    const at = parseDayTime(time, date ?? currentDayDate());
     if (!at) return json({ error: "bad time, expected HH:MM" }, 400);
     patch.created_at = at.toISOString();
   }
@@ -115,7 +120,7 @@ async function deleteEvent(id: string): Promise<Response> {
 }
 
 async function undoLast(): Promise<Response> {
-  const since = nightStartOf(currentNightDate())!.toISOString();
+  const since = dayStartOf(currentDayDate())!.toISOString();
   const res = await fetch(
     `${REST}?created_at=gte.${since}&order=created_at.desc&limit=1`,
     { headers: dbHeaders },
@@ -157,12 +162,12 @@ async function analytics(): Promise<Response> {
     fetchAll(`${REST}?select=id,event_type,created_at,note&order=created_at.asc`),
     fetchAll(`${NOTES_REST}?select=night_date,note`),
   ]);
-  return json({ events, notes, currentNight: currentNightDate() });
+  return json({ events, notes, currentNight: currentDayDate() });
 }
 
 async function report(dateStr?: string): Promise<Response> {
-  const date = dateStr ?? currentNightDate();
-  const start = nightStartOf(date);
+  const date = dateStr ?? currentDayDate();
+  const start = dayStartOf(date);
   if (!start) return json({ error: "bad date" }, 400);
   const end = new Date(start.getTime() + 24 * 3600 * 1000);
   const [evRes, noteRes] = await Promise.all([
@@ -172,22 +177,35 @@ async function report(dateStr?: string): Promise<Response> {
     ),
     fetch(`${NOTES_REST}?night_date=eq.${date}&select=note`, { headers: dbHeaders }),
   ]);
-  const rows = await evRes.json();
+  const rows: { id: number; event_type: string; created_at: string; note: string | null }[] =
+    await evRes.json();
   const [noteRow] = await noteRes.json();
-  const events = rows.map((r: { id: number; event_type: string; created_at: string; note: string | null }) => ({
+  const events = rows.map((r) => ({
     id: r.id,
     type: r.event_type,
     time: israelTime(r.created_at),
     note: r.note || "",
   }));
-  const bedtime = events.find((e: { type: string }) => e.type === "fell_asleep");
+  // Stats cover only the night portion of the day (17:00 -> 08:00)
+  const nightRows = rows.filter((r) => {
+    const h = israelHour(r.created_at);
+    return h >= NIGHT_HOUR || h < DAY_START_HOUR;
+  });
+  const bedtime = nightRows.find((r) => r.event_type === "fell_asleep");
+  // A woke_up only counts as a night wake-up when a fell_asleep follows it
+  // (an awake window); otherwise it is the morning wake
+  const wakeUps = nightRows.filter((r, i) =>
+    r.event_type === "woke_slept" ||
+    (r.event_type === "woke_up" &&
+      nightRows.slice(i + 1).some((n) => n.event_type === "fell_asleep"))
+  ).length;
   return json({
     date,
-    isCurrent: date === currentNightDate(),
-    nightStart: israelTime(start.toISOString()),
-    bedtime: bedtime ? bedtime.time : null,
-    wakeUps: events.filter((e: { type: string }) => e.type === "woke_slept" || e.type === "woke_up").length,
-    feeds: events.filter((e: { type: string }) => e.type === "breastfed").length,
+    isCurrent: date === currentDayDate(),
+    dayStart: israelTime(start.toISOString()),
+    bedtime: bedtime ? israelTime(bedtime.created_at) : null,
+    wakeUps,
+    feeds: nightRows.filter((r) => r.event_type === "breastfed").length,
     note: noteRow?.note ?? "",
     events,
   });

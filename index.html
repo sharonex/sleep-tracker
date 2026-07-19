@@ -130,7 +130,7 @@ const LABELS = {
   pain_med: "💊 Pain meds",
 };
 let showingReport = false;
-let viewDate = null;   // YYYY-MM-DD of the night being viewed; null = current night
+let viewDate = null;   // YYYY-MM-DD of the day being viewed; null = current day
 let isCurrent = true;
 let events = [];
 
@@ -160,10 +160,10 @@ function shiftDate(dateStr, days) {
   return d.toISOString().slice(0, 10);
 }
 
-function nightLabel() {
-  if (isCurrent) return "Tonight";
+function dayLabel() {
+  if (isCurrent) return "Today";
   const d = new Date(viewDate + "T12:00:00Z");
-  return "Night of " + d.toLocaleDateString("en-GB", {
+  return d.toLocaleDateString("en-GB", {
     weekday: "short", day: "numeric", month: "short", timeZone: "UTC",
   });
 }
@@ -211,7 +211,7 @@ async function toggleReport() {
   loadReport();
 }
 
-function goNight(days) {
+function goDay(days) {
   viewDate = shiftDate(viewDate, days);
   loadReport();
 }
@@ -226,9 +226,9 @@ async function loadReport() {
     events = d.events;
     let html =
       '<div class="nav">' +
-      '<button onclick="goNight(-1)">‹</button>' +
-      '<h2>' + nightLabel() + ' (from ' + d.nightStart + ')</h2>' +
-      '<button onclick="goNight(1)"' + (isCurrent ? " disabled" : "") + '>›</button>' +
+      '<button onclick="goDay(-1)">‹</button>' +
+      '<h2>' + dayLabel() + ' (from ' + d.dayStart + ')</h2>' +
+      '<button onclick="goDay(1)"' + (isCurrent ? " disabled" : "") + '>›</button>' +
       '</div>' +
       '<div class="summary">' +
       '<div class="stat"><div class="num">' + (d.bedtime || "—") + '</div><div class="label">🛌 asleep at</div></div>' +
@@ -236,7 +236,7 @@ async function loadReport() {
       '<div class="stat"><div class="num">' + d.feeds + '</div><div class="label">🤱 feeds</div></div>' +
       '</div><div id="events">';
     if (!d.events.length) {
-      html += '<div class="empty">' + (isCurrent ? "Quiet night so far 🎉" : "No events logged") + '</div>';
+      html += '<div class="empty">' + (isCurrent ? "Quiet day so far 🎉" : "No events logged") + '</div>';
     } else {
       for (const e of d.events) html += eventRow(e);
     }
