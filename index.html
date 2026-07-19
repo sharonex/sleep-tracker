@@ -3,141 +3,311 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0f1220">
-<title>Baby Sleep</title>
+<meta name="theme-color" content="#f6f1e7">
+<title>Lullaby · Baby Sleep</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { height: 100%; }
+  html { height: 100%; }
+  :root {
+    color-scheme: light dark;
+    --page:        light-dark(#f6f1e7, #1c1930);
+    --surface:     light-dark(#fffdf8, #272338);
+    --elev:        light-dark(#f4eee1, #322d4a);
+    --line:        light-dark(#e9e2d1, #383253);
+    --ink:         light-dark(#37324e, #efeadf);
+    --ink2:        light-dark(#5e5877, #c0bacf);
+    --muted:       light-dark(#8b85a0, #948da9);
+    --accent:      light-dark(#4a3aa7, #a9a0f0);
+    --accent-soft: light-dark(#eceafa, rgba(162,154,224,.16));
+    --good:        light-dark(#1e7a46, #3f9e6c);
+    --bad:         light-dark(#bc4a44, #c25b55);
+    --shadow: 0 1px 3px light-dark(rgba(60,45,110,.07), rgba(0,0,0,.35));
+  }
+  :root[data-theme="light"] { color-scheme: light; }
+  :root[data-theme="dark"]  { color-scheme: dark; }
+
   body {
-    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
-    background: #0f1220; color: #e8e6f0;
+    font-family: "Nunito", ui-rounded, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page); color: var(--ink);
+    min-height: 100%;
+    max-width: 480px; margin: 0 auto;
     display: flex; flex-direction: column;
-    padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+    padding: max(14px, env(safe-area-inset-top)) 16px max(14px, env(safe-area-inset-bottom));
     gap: 14px;
   }
-  h1 { font-size: 1.15rem; font-weight: 600; text-align: center; color: #b8b4d0; padding: 8px 0; }
-  button {
-    border: none; border-radius: 20px; width: 100%;
-    font-size: 1.25rem; font-weight: 600; font-family: inherit;
-    color: inherit; cursor: pointer; touch-action: manipulation;
+  .ico { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+  header { display: flex; align-items: center; gap: 12px; padding: 4px 2px; }
+  .logo {
+    width: 42px; height: 42px; border-radius: 14px; flex: none;
+    background: var(--accent-soft); color: var(--accent);
+    display: grid; place-items: center;
   }
+  header .name { flex: 1; }
+  header h1 { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.01em; }
+  header .date { font-size: 0.82rem; color: var(--muted); font-weight: 600; }
+  #themeBtn {
+    width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 13px;
+    background: var(--surface); color: var(--muted); cursor: pointer;
+    display: grid; place-items: center;
+  }
+  #themeBtn .ico { width: 19px; height: 19px; }
+
+  button { font-family: inherit; color: inherit; border: none; background: none; cursor: pointer; touch-action: manipulation; }
   button:active { transform: scale(0.97); }
-  #grid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  .big { min-height: 100px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; font-size: 1.05rem; }
-  .big .emoji { font-size: 2.4rem; }
-  #briefwake { background: #33305c; grid-column: 1 / -1; }
-  #wake { background: #4a4020; }
-  #sleep { background: #223055; }
-  #feed { background: #4a2f55; }
-  #solid { background: #1e3a34; }
-  #bottle { background: #2c4257; }
-  #painmed { background: #55302f; }
-  #reportBtn { background: #1c2438; min-height: 64px; font-size: 1.1rem; color: #b8b4d0; }
-  #analyticsBtn {
-    flex: 1; display: flex; align-items: center; justify-content: center;
-    background: #1c2438; min-height: 64px; font-size: 1.1rem; font-weight: 600;
-    color: #b8b4d0; border-radius: 20px; text-decoration: none;
+
+  .seclbl {
+    font-size: 0.72rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--muted); margin: 2px 4px 8px;
   }
-  #undo { background: none; min-height: 44px; font-size: 0.9rem; color: #6f6a8a; font-weight: 400; }
+  section + section { margin-top: 16px; }
+
+  .action {
+    width: 100%; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 18px; box-shadow: var(--shadow);
+    font-size: 1rem; font-weight: 700; color: var(--ink); text-align: left;
+  }
+  .chip {
+    background: var(--tint); color: var(--tone);
+    display: grid; place-items: center; flex: none;
+    width: 44px; height: 44px; border-radius: 15px;
+  }
+  .action.row { display: flex; align-items: center; gap: 13px; padding: 13px 15px; }
+  .action.row .hint { display: block; font-size: 0.78rem; font-weight: 600; color: var(--muted); margin-top: 1px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; margin-top: 11px; }
+  .pair:first-child { margin-top: 0; }
+  .action.tall { display: flex; flex-direction: column; align-items: center; gap: 9px; padding: 16px 10px 14px; text-align: center; }
+
+  .a-brief  { --tint: light-dark(#eceafa, rgba(169,160,240,.15)); --tone: light-dark(#5a4ab8, #b3abf0); }
+  .a-sleep  { --tint: light-dark(#eceafa, rgba(169,160,240,.15)); --tone: light-dark(#4a3aa7, #b3abf0); }
+  .a-wake   { --tint: light-dark(#fcecdd, rgba(240,153,106,.14)); --tone: light-dark(#b5551d, #f0996a); }
+  .a-feed   { --tint: light-dark(#fbe8f0, rgba(238,138,178,.14)); --tone: light-dark(#bc4879, #ee8ab2); }
+  .a-bottle { --tint: light-dark(#e5effc, rgba(127,176,238,.14)); --tone: light-dark(#2566b4, #7fb0ee); }
+  .a-solid  { --tint: light-dark(#e7f2e5, rgba(124,201,138,.14)); --tone: light-dark(#2b7a34, #7cc98a); }
+  .a-med    { --tint: light-dark(#faf0d7, rgba(223,174,85,.15));  --tone: light-dark(#96690a, #dfae55); }
+
+  #undo {
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    min-height: 44px; font-size: 0.88rem; font-weight: 700; color: var(--muted);
+    margin-top: 10px; width: 100%;
+  }
+  #undo .ico { width: 16px; height: 16px; }
+
   #toast {
-    position: fixed; left: 50%; top: 14px; transform: translateX(-50%);
-    background: #2e7d5b; color: #fff; padding: 10px 22px; border-radius: 999px;
-    font-size: 1rem; opacity: 0; transition: opacity .25s; pointer-events: none; white-space: nowrap; z-index: 10;
+    position: fixed; left: 50%; top: max(14px, env(safe-area-inset-top)); transform: translateX(-50%);
+    background: var(--good); color: #fff; padding: 10px 20px; border-radius: 999px;
+    font-size: 0.95rem; font-weight: 700; opacity: 0; transition: opacity .25s;
+    pointer-events: none; white-space: nowrap; z-index: 10;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
   }
   #toast.show { opacity: 1; }
-  #report { display: none; flex: 1; overflow-y: auto; background: #171b2e; border-radius: 20px; padding: 18px; }
-  .nav { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-  .nav h2 { flex: 1; font-size: 1rem; color: #b8b4d0; text-align: center; }
-  .nav button { width: 44px; min-width: 44px; height: 40px; border-radius: 12px; background: #222741; font-size: 1.1rem; }
+
+  .bottom { display: flex; gap: 10px; margin-top: auto; padding-top: 6px; }
+  .bottom .tab {
+    flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: 56px; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 16px; box-shadow: var(--shadow);
+    font-size: 0.95rem; font-weight: 700; color: var(--ink2); text-decoration: none;
+  }
+  .bottom .tab .ico { width: 19px; height: 19px; }
+  .bottom .tab:active { transform: scale(0.97); }
+
+  /* ---- report ---- */
+  #report {
+    display: none; flex: 1; overflow-y: auto;
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 20px; padding: 16px; box-shadow: var(--shadow);
+  }
+  .nav { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+  .nav .title { flex: 1; text-align: center; }
+  .nav h2 { font-size: 1.02rem; font-weight: 800; }
+  .nav .sub { font-size: 0.75rem; color: var(--muted); font-weight: 600; }
+  .nav button {
+    width: 40px; min-width: 40px; height: 40px; border-radius: 13px;
+    background: var(--elev); color: var(--ink2); display: grid; place-items: center;
+  }
   .nav button:disabled { opacity: 0.3; }
-  .summary { display: flex; gap: 8px; margin-bottom: 16px; }
-  .stat { flex: 1; background: #222741; border-radius: 14px; padding: 12px 6px; text-align: center; }
-  .stat .num { font-size: 1.5rem; font-weight: 700; }
-  .stat .label { font-size: 0.75rem; color: #8d88a8; margin-top: 2px; }
-  .event { display: flex; align-items: center; gap: 10px; padding: 8px 2px; border-bottom: 1px solid #232841; font-size: 1rem; flex-wrap: wrap; }
+  .nav button .ico { width: 18px; height: 18px; }
+
+  .summary { display: flex; gap: 9px; margin-bottom: 16px; }
+  .stat { flex: 1; background: var(--elev); border-radius: 15px; padding: 11px 6px; text-align: center; }
+  .stat .num { font-size: 1.35rem; font-weight: 800; }
+  .stat .label { font-size: 0.72rem; color: var(--muted); font-weight: 700; margin-top: 1px; }
+
+  .event { display: flex; align-items: center; gap: 10px; padding: 9px 2px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
   .event:last-child { border-bottom: none; }
-  .event .t { color: #8d88a8; font-variant-numeric: tabular-nums; min-width: 52px; }
-  .event .lbl { flex: 1; }
-  .event .note { flex-basis: 100%; font-size: 0.85rem; color: #9a94b8; padding: 0 0 4px 62px; font-weight: 400; }
+  .event .t { color: var(--muted); font-weight: 700; font-variant-numeric: tabular-nums; min-width: 46px; font-size: 0.92rem; }
+  .event .chip { width: 32px; height: 32px; border-radius: 11px; }
+  .event .chip .ico { width: 17px; height: 17px; }
+  .event .lbl { flex: 1; font-weight: 700; font-size: 0.97rem; }
+  .event .note { flex-basis: 100%; font-size: 0.84rem; color: var(--ink2); padding: 2px 0 3px 88px; }
   .icon-btn {
-    width: 40px; min-width: 40px; height: 40px; border-radius: 12px;
-    background: #222741; font-size: 1rem; display: flex; align-items: center; justify-content: center;
+    width: 36px; min-width: 36px; height: 36px; border-radius: 12px;
+    background: var(--elev); color: var(--ink2); display: grid; place-items: center;
   }
-  .icon-btn.danger { color: #d98a8a; }
+  .icon-btn .ico { width: 16px; height: 16px; }
+  .icon-btn.danger { color: var(--bad); }
+  .icon-btn.ok { background: var(--accent-soft); color: var(--accent); }
+
   input[type="time"], input[type="text"], select, textarea {
-    background: #222741; color: #e8e6f0; border: 1px solid #363c5e; border-radius: 10px;
-    font-family: inherit; font-size: 1rem; padding: 8px; min-height: 40px;
-    color-scheme: dark;
+    background: var(--elev); color: var(--ink); border: 1px solid var(--line); border-radius: 11px;
+    font-family: inherit; font-size: 0.95rem; font-weight: 600; padding: 8px 10px; min-height: 40px;
   }
-  .editrow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 8px 2px; border-bottom: 1px solid #232841; }
+  .editrow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 9px 2px; border-bottom: 1px solid var(--line); }
+  .editrow .lbl { flex: 1; font-weight: 700; }
   .editrow input[type="text"] { flex-basis: 100%; }
   .addrow { display: flex; gap: 8px; align-items: center; margin-top: 14px; }
   .addrow select { flex: 1; min-width: 0; }
-  #addBtn { background: none; min-height: 44px; font-size: 0.95rem; color: #6f6a8a; font-weight: 400; margin-top: 10px; }
+  #addBtn {
+    display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%;
+    min-height: 44px; font-size: 0.88rem; font-weight: 700; color: var(--muted); margin-top: 8px;
+  }
+  #addBtn .ico { width: 15px; height: 15px; }
   .daynote { margin-top: 18px; }
-  .daynote h3 { font-size: 0.85rem; color: #8d88a8; margin-bottom: 6px; font-weight: 600; }
-  .daynote textarea { width: 100%; min-height: 70px; resize: vertical; font-size: 0.95rem; }
-  .daynote button { margin-top: 8px; min-height: 40px; font-size: 0.9rem; background: #222741; color: #b8b4d0; border-radius: 12px; }
-  .empty { color: #6f6a8a; text-align: center; padding: 24px 0; }
+  .daynote h3 { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--ink2); margin-bottom: 7px; font-weight: 800; }
+  .daynote h3 .ico { width: 15px; height: 15px; color: var(--muted); }
+  .daynote textarea { width: 100%; min-height: 70px; resize: vertical; }
+  .daynote button {
+    margin-top: 8px; min-height: 40px; padding: 0 18px; font-size: 0.88rem; font-weight: 700;
+    background: var(--accent-soft); color: var(--accent); border-radius: 12px;
+  }
+  .empty { color: var(--muted); text-align: center; padding: 26px 0; font-weight: 600; }
 </style>
 </head>
 <body>
-  <h1>🌙 Baby Sleep Tracker</h1>
+  <svg style="display:none" aria-hidden="true">
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.4 14.2A8.2 8.2 0 1 1 9.8 3.6a6.6 6.6 0 0 0 10.6 10.6Z"/><path d="M18.5 2.8v3.4M16.8 4.5h3.4"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></symbol>
+    <symbol id="i-zzz" viewBox="0 0 24 24"><path d="M13.5 4H19l-5.5 6H19"/><path d="M4.5 12.5h7L4.5 20h7"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20.4 5.3 13.9A4.9 4.9 0 0 1 4 8.6 4.85 4.85 0 0 1 12 6.7a4.85 4.85 0 0 1 8 1.9 4.9 4.9 0 0 1-1.3 5.3Z"/></symbol>
+    <symbol id="i-bottle" viewBox="0 0 24 24"><path d="M10.3 5V3.9c0-1 .76-1.8 1.7-1.8s1.7.8 1.7 1.8V5"/><path d="M9.2 5h5.6v2.6H9.2Z"/><path d="M9.7 7.6h4.6v11.6a2.3 2.3 0 0 1-2.3 2.3 2.3 2.3 0 0 1-2.3-2.3Z"/><path d="M9.7 11.4h2.1M9.7 14.6h2.1"/></symbol>
+    <symbol id="i-bowl" viewBox="0 0 24 24"><path d="M3.8 12.5h16.4a8.2 8.2 0 0 1-5 7v1.7H9v-1.7a8.2 8.2 0 0 1-5.2-7Z"/><path d="M9.4 9c0-1.1.9-1.2.9-2.6M13.4 9c0-1.1.9-1.2.9-2.6"/></symbol>
+    <symbol id="i-pill" viewBox="0 0 24 24"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/></symbol>
+    <symbol id="i-clipboard" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4M12 16h4M8 11h.01M8 16h.01"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m7 14 4-5 3 3 5-6.5"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></symbol>
+    <symbol id="i-chev-l" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="i-chev-r" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  </svg>
+
+  <header>
+    <div class="logo"><svg class="ico"><use href="#i-moon"/></svg></div>
+    <div class="name">
+      <h1>Lullaby</h1>
+      <div class="date" id="todayLine"></div>
+    </div>
+    <button id="themeBtn" onclick="toggleTheme()" aria-label="Toggle theme"><svg class="ico"><use id="themeIco" href="#i-moon"/></svg></button>
+  </header>
+
   <div id="toast"></div>
 
-  <div id="buttons" style="display:flex;flex-direction:column;gap:14px;flex:1;">
-    <div id="grid">
-      <button class="big" id="briefwake" onclick="log('woke_slept')">
-        <span class="emoji">😴</span><span>Woke &amp; back to sleep</span>
+  <div id="buttons" style="display:flex;flex-direction:column;flex:1;">
+    <section>
+      <h2 class="seclbl">Sleep</h2>
+      <button class="action row a-brief" onclick="log('woke_slept')">
+        <span class="chip"><svg class="ico"><use href="#i-zzz"/></svg></span>
+        <span>Woke &amp; back to sleep<span class="hint">one tap for brief night wakes</span></span>
       </button>
-      <button class="big" id="wake" onclick="log('woke_up')">
-        <span class="emoji">☀️</span><span>Woke up</span>
-      </button>
-      <button class="big" id="sleep" onclick="log('fell_asleep')">
-        <span class="emoji">🛌</span><span>Went to sleep</span>
-      </button>
-      <button class="big" id="feed" onclick="log('breastfed')">
-        <span class="emoji">🤱</span><span>Breastfed</span>
-      </button>
-      <button class="big" id="solid" onclick="log('solid_food')">
-        <span class="emoji">🍽️</span><span>Solid food dinner</span>
-      </button>
-      <button class="big" id="bottle" onclick="log('bottle')">
-        <span class="emoji">🍼</span><span>Bottle</span>
-      </button>
-      <button class="big" id="painmed" onclick="log('pain_med')">
-        <span class="emoji">💊</span><span>Pain medication</span>
-      </button>
-    </div>
-    <button id="undo" onclick="undo()">↩︎ Undo last</button>
+      <div class="pair">
+        <button class="action tall a-sleep" onclick="log('fell_asleep')">
+          <span class="chip"><svg class="ico"><use href="#i-moon"/></svg></span>
+          <span>Went to sleep</span>
+        </button>
+        <button class="action tall a-wake" onclick="log('woke_up')">
+          <span class="chip"><svg class="ico"><use href="#i-sun"/></svg></span>
+          <span>Woke up</span>
+        </button>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="seclbl">Food &amp; care</h2>
+      <div class="pair">
+        <button class="action tall a-feed" onclick="log('breastfed')">
+          <span class="chip"><svg class="ico"><use href="#i-heart"/></svg></span>
+          <span>Breastfed</span>
+        </button>
+        <button class="action tall a-bottle" onclick="log('bottle')">
+          <span class="chip"><svg class="ico"><use href="#i-bottle"/></svg></span>
+          <span>Bottle</span>
+        </button>
+        <button class="action tall a-solid" onclick="log('solid_food')">
+          <span class="chip"><svg class="ico"><use href="#i-bowl"/></svg></span>
+          <span>Solid food dinner</span>
+        </button>
+        <button class="action tall a-med" onclick="log('pain_med')">
+          <span class="chip"><svg class="ico"><use href="#i-pill"/></svg></span>
+          <span>Pain medication</span>
+        </button>
+      </div>
+    </section>
+
+    <button id="undo" onclick="undo()"><svg class="ico"><use href="#i-undo"/></svg>Undo last entry</button>
   </div>
 
   <div id="report"></div>
-  <div style="display:flex;gap:10px;">
-    <button id="reportBtn" onclick="toggleReport()" style="flex:2;">📋 Report</button>
-    <a href="analytics.html" id="analyticsBtn">📈 Analytics</a>
-  </div>
+
+  <nav class="bottom">
+    <button class="tab" id="reportBtn" onclick="toggleReport()"><svg class="ico"><use href="#i-clipboard"/></svg><span id="reportLbl">Report</span></button>
+    <a class="tab" href="analytics.html"><svg class="ico"><use href="#i-chart"/></svg>Analytics</a>
+  </nav>
 
 <script>
 const base = "https://uwweesqirduxjgaptjyq.supabase.co/functions/v1/app";
-const LABELS = {
-  woke_slept: "😴 Back to sleep",
-  breastfed: "🤱 Breastfed",
-  fell_asleep: "🛌 Fell asleep",
-  woke_up: "☀️ Woke up",
-  solid_food: "🍽️ Solid food",
-  bottle: "🍼 Bottle",
-  pain_med: "💊 Pain meds",
+const META = {
+  woke_slept:  { icon: "zzz",    cls: "a-brief",  label: "Back to sleep" },
+  breastfed:   { icon: "heart",  cls: "a-feed",   label: "Breastfed" },
+  fell_asleep: { icon: "moon",   cls: "a-sleep",  label: "Fell asleep" },
+  woke_up:     { icon: "sun",    cls: "a-wake",   label: "Woke up" },
+  solid_food:  { icon: "bowl",   cls: "a-solid",  label: "Solid food" },
+  bottle:      { icon: "bottle", cls: "a-bottle", label: "Bottle" },
+  pain_med:    { icon: "pill",   cls: "a-med",    label: "Pain meds" },
 };
 let showingReport = false;
 let viewDate = null;   // YYYY-MM-DD of the day being viewed; null = current day
 let isCurrent = true;
 let events = [];
 
+/* ---- theme ---- */
+const rootEl = document.documentElement;
+if (localStorage.getItem("theme")) rootEl.dataset.theme = localStorage.getItem("theme");
+function effectiveDark() {
+  if (rootEl.dataset.theme) return rootEl.dataset.theme === "dark";
+  return matchMedia("(prefers-color-scheme: dark)").matches;
+}
+function applyTheme() {
+  document.querySelector('meta[name="theme-color"]').content = effectiveDark() ? "#1c1930" : "#f6f1e7";
+  document.getElementById("themeIco").setAttribute("href", effectiveDark() ? "#i-sun" : "#i-moon");
+}
+function toggleTheme() {
+  const next = effectiveDark() ? "light" : "dark";
+  rootEl.dataset.theme = next;
+  localStorage.setItem("theme", next);
+  applyTheme();
+}
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
+applyTheme();
+
+document.getElementById("todayLine").textContent =
+  new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Asia/Jerusalem" });
+
+function ico(name) { return '<svg class="ico"><use href="#i-' + name + '"/></svg>'; }
+function chip(type) {
+  return '<span class="chip ' + META[type].cls + '">' + ico(META[type].icon) + '</span>';
+}
+
 function toast(msg, err) {
   const t = document.getElementById("toast");
   t.textContent = msg;
-  t.style.background = err ? "#8a3a3a" : "#2e7d5b";
+  t.style.background = err ? "var(--bad)" : "var(--good)";
   t.classList.add("show");
   clearTimeout(t._h);
   t._h = setTimeout(() => t.classList.remove("show"), 2200);
@@ -185,14 +355,14 @@ async function log(type) {
   try {
     const d = await post("/api/event", { type });
     if (!d.ok) throw 0;
-    toast(LABELS[type] + " · " + d.time);
+    toast(META[type].label + " · " + d.time);
   } catch { toast("Failed — try again", true); }
 }
 
 async function undo() {
   try {
     const d = await api("/api/undo", { method: "POST" });
-    toast(d.ok ? "Removed: " + LABELS[d.undone] + " (" + d.time + ")" : "Nothing to undo", !d.ok);
+    toast(d.ok ? "Removed: " + META[d.undone].label + " (" + d.time + ")" : "Nothing to undo", !d.ok);
   } catch { toast("Failed — try again", true); }
 }
 
@@ -202,11 +372,11 @@ async function toggleReport() {
   showingReport = !showingReport;
   if (!showingReport) {
     rep.style.display = "none"; btns.style.display = "flex";
-    document.getElementById("reportBtn").textContent = "📋 Report";
+    document.getElementById("reportLbl").textContent = "Report";
     return;
   }
   btns.style.display = "none"; rep.style.display = "block";
-  document.getElementById("reportBtn").textContent = "← Back";
+  document.getElementById("reportLbl").textContent = "Back";
   viewDate = null;
   loadReport();
 }
@@ -226,24 +396,24 @@ async function loadReport() {
     events = d.events;
     let html =
       '<div class="nav">' +
-      '<button onclick="goDay(-1)">‹</button>' +
-      '<h2>' + dayLabel() + ' (from ' + d.dayStart + ')</h2>' +
-      '<button onclick="goDay(1)"' + (isCurrent ? " disabled" : "") + '>›</button>' +
+      '<button onclick="goDay(-1)">' + ico("chev-l") + '</button>' +
+      '<div class="title"><h2>' + dayLabel() + '</h2><div class="sub">from ' + d.dayStart + '</div></div>' +
+      '<button onclick="goDay(1)"' + (isCurrent ? " disabled" : "") + '>' + ico("chev-r") + '</button>' +
       '</div>' +
       '<div class="summary">' +
-      '<div class="stat"><div class="num">' + (d.bedtime || "—") + '</div><div class="label">🛌 asleep at</div></div>' +
-      '<div class="stat"><div class="num">' + d.wakeUps + '</div><div class="label">☀️ wake-ups</div></div>' +
-      '<div class="stat"><div class="num">' + d.feeds + '</div><div class="label">🤱 feeds</div></div>' +
+      '<div class="stat"><div class="num">' + (d.bedtime || "—") + '</div><div class="label">asleep at</div></div>' +
+      '<div class="stat"><div class="num">' + d.wakeUps + '</div><div class="label">wake-ups</div></div>' +
+      '<div class="stat"><div class="num">' + d.feeds + '</div><div class="label">feeds</div></div>' +
       '</div><div id="events">';
     if (!d.events.length) {
-      html += '<div class="empty">' + (isCurrent ? "Quiet day so far 🎉" : "No events logged") + '</div>';
+      html += '<div class="empty">' + (isCurrent ? "Quiet day so far" : "No events logged") + '</div>';
     } else {
       for (const e of d.events) html += eventRow(e);
     }
     html += '</div>' +
-      '<button id="addBtn" onclick="showAdd()">＋ Add missed event</button>' +
+      '<button id="addBtn" onclick="showAdd()">' + ico("plus") + 'Add missed event</button>' +
       '<div id="addForm"></div>' +
-      '<div class="daynote"><h3>📝 Note for the day</h3>' +
+      '<div class="daynote"><h3>' + ico("pencil") + 'Note for the day</h3>' +
       '<textarea id="dayNote" placeholder="How was the day / night?">' + esc(d.note) + '</textarea>' +
       '<button onclick="saveDayNote()">Save note</button></div>';
     rep.innerHTML = html;
@@ -253,9 +423,10 @@ async function loadReport() {
 function eventRow(e) {
   return '<div class="event" id="ev' + e.id + '">' +
     '<span class="t">' + e.time + '</span>' +
-    '<span class="lbl">' + LABELS[e.type] + '</span>' +
-    '<button class="icon-btn" onclick="editEvent(' + e.id + ')">✏️</button>' +
-    '<button class="icon-btn danger" onclick="delEvent(' + e.id + ')">✕</button>' +
+    chip(e.type) +
+    '<span class="lbl">' + META[e.type].label + '</span>' +
+    '<button class="icon-btn" onclick="editEvent(' + e.id + ')">' + ico("pencil") + '</button>' +
+    '<button class="icon-btn danger" onclick="delEvent(' + e.id + ')">' + ico("x") + '</button>' +
     (e.note ? '<span class="note">' + esc(e.note) + '</span>' : '') +
     '</div>';
 }
@@ -266,9 +437,9 @@ function editEvent(id) {
   el.className = "editrow";
   el.innerHTML =
     '<input type="time" id="t' + id + '" value="' + e.time + '">' +
-    '<span class="lbl">' + LABELS[e.type] + '</span>' +
-    '<button class="icon-btn" onclick="saveEvent(' + id + ')">✓</button>' +
-    '<button class="icon-btn" onclick="loadReport()">✕</button>' +
+    '<span class="lbl">' + META[e.type].label + '</span>' +
+    '<button class="icon-btn ok" onclick="saveEvent(' + id + ')">' + ico("check") + '</button>' +
+    '<button class="icon-btn" onclick="loadReport()">' + ico("x") + '</button>' +
     '<input type="text" id="n' + id + '" placeholder="Note (optional)" value="' + esc(e.note) + '">';
 }
 
@@ -299,14 +470,14 @@ async function delEvent(id) {
 function showAdd() {
   document.getElementById("addBtn").style.display = "none";
   let options = "";
-  for (const [type, label] of Object.entries(LABELS)) {
-    options += '<option value="' + type + '">' + label + '</option>';
+  for (const [type, m] of Object.entries(META)) {
+    options += '<option value="' + type + '">' + m.label + '</option>';
   }
   document.getElementById("addForm").innerHTML =
     '<div class="addrow">' +
     '<select id="addType">' + options + '</select>' +
     '<input type="time" id="addTime"' + (isCurrent ? ' value="' + nowIsraelHHMM() + '"' : '') + '>' +
-    '<button class="icon-btn" onclick="saveAdd()">✓</button>' +
+    '<button class="icon-btn ok" onclick="saveAdd()">' + ico("check") + '</button>' +
     '</div>';
 }
 
@@ -317,7 +488,7 @@ async function saveAdd() {
   try {
     const d = await post("/api/event", { type, time, date: viewDate });
     if (!d.ok) throw 0;
-    toast(LABELS[type] + " added at " + d.time);
+    toast(META[type].label + " added at " + d.time);
   } catch { toast("Failed — try again", true); }
   loadReport();
 }
