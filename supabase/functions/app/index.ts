@@ -4,7 +4,9 @@ const REST = `${SUPABASE_URL}/rest/v1/sleep_events`;
 const NOTES_REST = `${SUPABASE_URL}/rest/v1/night_notes`;
 const TZ = "Asia/Jerusalem";
 const DAY_START_HOUR = 8; // a tracked day runs 08:00 -> 08:00 Israel time
-const NIGHT_HOUR = 17; // 17:00 -> 08:00 is the night portion, used for the report stats
+const NIGHT_HOUR = 17; // earliest hour that counts as bedtime
+const STAT_START_HOUR = 19; // wake-up and feed totals only count 19:00 -> 07:00,
+const STAT_END_HOUR = 7; // the actual night we're trying to optimize
 const EVENT_TYPES = ["woke_slept", "breastfed", "fell_asleep", "woke_up", "solid_food", "bottle", "pain_med"];
 const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
@@ -186,18 +188,19 @@ async function report(dateStr?: string): Promise<Response> {
     time: israelTime(r.created_at),
     note: r.note || "",
   }));
-  // Stats cover only the night portion of the day (17:00 -> 08:00)
-  const nightRows = rows.filter((r) => {
+  const bedtime = rows.find((r) =>
+    r.event_type === "fell_asleep" && israelHour(r.created_at) >= NIGHT_HOUR
+  );
+  const statRows = rows.filter((r) => {
     const h = israelHour(r.created_at);
-    return h >= NIGHT_HOUR || h < DAY_START_HOUR;
+    return h >= STAT_START_HOUR || h < STAT_END_HOUR;
   });
-  const bedtime = nightRows.find((r) => r.event_type === "fell_asleep");
   // A woke_up only counts as a night wake-up when a fell_asleep follows it
   // (an awake window); otherwise it is the morning wake
-  const wakeUps = nightRows.filter((r, i) =>
+  const wakeUps = statRows.filter((r, i) =>
     r.event_type === "woke_slept" ||
     (r.event_type === "woke_up" &&
-      nightRows.slice(i + 1).some((n) => n.event_type === "fell_asleep"))
+      statRows.slice(i + 1).some((n) => n.event_type === "fell_asleep"))
   ).length;
   return json({
     date,
@@ -205,7 +208,7 @@ async function report(dateStr?: string): Promise<Response> {
     dayStart: israelTime(start.toISOString()),
     bedtime: bedtime ? israelTime(bedtime.created_at) : null,
     wakeUps,
-    feeds: nightRows.filter((r) => r.event_type === "breastfed").length,
+    feeds: statRows.filter((r) => r.event_type === "breastfed").length,
     note: noteRow?.note ?? "",
     events,
   });

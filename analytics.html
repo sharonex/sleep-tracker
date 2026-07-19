@@ -102,6 +102,8 @@ const TZ = "Asia/Jerusalem";
 const DAY_START = 8;                   // a tracked day runs 08:00 -> 08:00 Israel time
 const NIGHT_MIN = 9 * 60;              // offset of 17:00 — sleep starting earlier = nap, later = night
 const MORNING_MIN = 21 * 60;           // a final wake at/after 05:00 counts as the morning wake
+const STAT_MIN = 11 * 60;              // wake-up and feed totals only count 19:00 -> 07:00,
+const STAT_MAX = 23 * 60;              // the actual night being optimized
 const EMOJI = { breastfed: "🤱", bottle: "🍼", solid_food: "🍽️", pain_med: "💊" };
 const NAMES = { breastfed: "Breastfed", bottle: "Bottle", solid_food: "Solid food", pain_med: "Pain meds", woke_up: "Woke up", woke_slept: "Back to sleep", fell_asleep: "Fell asleep" };
 
@@ -176,17 +178,17 @@ function deriveNight(date, evs, isCurrent, nowOffset) {
   let morningWake = null;
   if (lastNight && !lastNight.ongoing && lastNight.end >= MORNING_MIN) morningWake = lastNight.end;
 
-  const nightEnd = morningWake ?? 1440;
+  const nightEnd = Math.min(morningWake ?? 1440, STAT_MAX);
   const wakes = evs.filter(e => e.type === "woke_up" || e.type === "woke_slept");
   const wakeUps = wakes.filter(e =>
-    e.min > (bedtimeMin ?? NIGHT_MIN) && e.min < nightEnd
+    e.min >= Math.max(bedtimeMin ?? 0, STAT_MIN) && e.min < nightEnd
   ).length;
 
   const longestStretch = nightSegs.length ? Math.max(...nightSegs.map(s => s.end - s.start)) : null;
   const totalNightSleep = morningWake !== null && !openSeg
     ? nightSegs.reduce((a, s) => a + (s.end - s.start), 0) : null;
 
-  const feeds = evs.filter(e => e.type === "breastfed" && e.min >= NIGHT_MIN && e.min < nightEnd).length;
+  const feeds = evs.filter(e => e.type === "breastfed" && e.min >= STAT_MIN && e.min < nightEnd).length;
   const bottles = evs.filter(e => e.type === "bottle").length;
   const solid = evs.find(e => e.type === "solid_food" && e.min >= NIGHT_MIN) || null;
   const meds = evs.filter(e => e.type === "pain_med");
@@ -311,7 +313,7 @@ function render() {
 
   app.appendChild(card("night-timeline", "Days at a glance",
     "08:00 → 08:00 · dark blue = night sleep, light blue = naps · gaps = awake"));
-  app.appendChild(card("chart-wakes", "Wake-ups per night", "wakes between falling asleep and the morning wake"));
+  app.appendChild(card("chart-wakes", "Wake-ups per night", "wakes between 19:00 and 07:00"));
   app.appendChild(card("chart-stretch", "Longest sleep stretch", "longest unbroken night sleep, in hours"));
   app.appendChild(card("chart-bedtime", "Bedtime", "when the first night sleep started"));
 
@@ -326,7 +328,7 @@ function render() {
 
   const foot = document.createElement("div");
   foot.className = "foot";
-  foot.textContent = "How it’s computed: a day runs 08:00→08:00 (Israel time). Sleep starting before 17:00 is a nap; later is night sleep. The last wake after 05:00 is the morning wake. Sleep with no logged end is drawn faded and skipped in stretch averages; total night sleep is only counted when the morning wake was logged. Today joins the averages once its morning wake is logged.";
+  foot.textContent = "How it’s computed: a day runs 08:00→08:00 (Israel time). Sleep starting before 17:00 is a nap; later is night sleep. The last wake after 05:00 is the morning wake. Wake-up and feed totals only count events between 19:00 and 07:00 — the actual night. Sleep with no logged end is drawn faded and skipped in stretch averages; total night sleep is only counted when the morning wake was logged. Today joins the averages once its morning wake is logged.";
   app.appendChild(foot);
 
   renderTimeline(rows);
