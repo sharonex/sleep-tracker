@@ -1,0 +1,733 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1220">
+<title>Baby Sleep — Analytics</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :root {
+    color-scheme: dark;
+    --page: #0f1220; --surface: #171b2e; --elev: #222741; --elev2: #2a3050;
+    --ink: #e8e6f0; --ink2: #b8b4d0; --muted: #8d88a8;
+    --grid: #20263e; --axis: #363c5e;
+    --sleep: #3987e5; --sleep-hover: #5598e7; --nap: #86b6ef;
+    --good: #17b26a; --bad: #e66767;
+  }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--page); color: var(--ink);
+    padding: max(14px, env(safe-area-inset-top)) 14px max(24px, env(safe-area-inset-bottom));
+    max-width: 860px; margin: 0 auto;
+  }
+  header { display: flex; align-items: center; gap: 10px; padding: 6px 0 14px; }
+  header a { color: var(--muted); text-decoration: none; font-size: 0.95rem; padding: 8px 10px; background: var(--surface); border-radius: 12px; }
+  h1 { font-size: 1.15rem; font-weight: 600; color: var(--ink2); flex: 1; text-align: center; }
+  header .spacer { width: 74px; }
+
+  .filters { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .filters button {
+    border: none; font-family: inherit; font-size: 0.9rem; color: var(--ink2);
+    background: var(--surface); border-radius: 999px; padding: 8px 16px; cursor: pointer;
+  }
+  .filters button.sel { background: var(--elev2); color: var(--ink); font-weight: 600; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .tile { background: var(--surface); border-radius: 16px; padding: 14px; }
+  .tile .lbl { font-size: 0.78rem; color: var(--muted); margin-bottom: 6px; }
+  .tile .val { font-size: 1.55rem; font-weight: 600; }
+  .tile .delta { font-size: 0.78rem; margin-top: 6px; color: var(--muted); }
+  .tile .delta.good { color: var(--good); }
+  .tile .delta.bad { color: var(--bad); }
+
+  .card { background: var(--surface); border-radius: 16px; padding: 16px; margin-bottom: 14px; }
+  .card h2 { font-size: 0.95rem; font-weight: 600; color: var(--ink2); }
+  .card .sub { font-size: 0.78rem; color: var(--muted); margin: 3px 0 12px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.78rem; color: var(--muted); margin-top: 10px; align-items: center; }
+  .legend .sw { display: inline-block; width: 14px; height: 8px; border-radius: 3px; margin-right: 5px; vertical-align: baseline; }
+  svg { display: block; width: 100%; }
+  svg text { font-family: inherit; }
+
+  #tip {
+    position: fixed; z-index: 10; pointer-events: none; display: none;
+    background: var(--elev); border: 1px solid var(--axis); border-radius: 10px;
+    padding: 8px 11px; font-size: 0.82rem; max-width: 260px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.45);
+  }
+  #tip .t-title { font-weight: 600; color: var(--ink2); margin-bottom: 4px; }
+  #tip .t-row { display: flex; gap: 10px; justify-content: space-between; color: var(--muted); padding: 1px 0; }
+  #tip .t-row b { color: var(--ink); font-weight: 600; }
+
+  .insights { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px; }
+  .insight { background: var(--surface); border-radius: 16px; padding: 14px; }
+  .insight h3 { font-size: 0.92rem; font-weight: 600; margin-bottom: 10px; }
+  .insight .metric { font-size: 0.75rem; color: var(--muted); margin: 8px 0 4px; }
+  .cmp-row { display: grid; grid-template-columns: 86px 1fr 44px; gap: 8px; align-items: center; font-size: 0.8rem; margin: 3px 0; }
+  .cmp-row .who { color: var(--muted); }
+  .cmp-row .bar { height: 10px; border-radius: 3px 5px 5px 3px; min-width: 2px; }
+  .cmp-row .num { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .insight .verdict { font-size: 0.8rem; margin-top: 10px; color: var(--ink2); line-height: 1.4; }
+  .insight .verdict .good { color: var(--good); }
+  .insight .verdict .bad { color: var(--bad); }
+  .insight .nodata { font-size: 0.8rem; color: var(--muted); margin-top: 6px; }
+
+  details { background: var(--surface); border-radius: 16px; padding: 14px 16px; margin-bottom: 14px; }
+  summary { font-size: 0.95rem; font-weight: 600; color: var(--ink2); cursor: pointer; }
+  .tablewrap { overflow-x: auto; margin-top: 10px; }
+  table { border-collapse: collapse; font-size: 0.8rem; white-space: nowrap; width: 100%; }
+  th { color: var(--muted); font-weight: 600; text-align: left; padding: 6px 12px 6px 0; border-bottom: 1px solid var(--axis); }
+  td { padding: 6px 12px 6px 0; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; color: var(--ink2); }
+  td.note { white-space: normal; min-width: 140px; color: var(--muted); }
+
+  .foot { font-size: 0.75rem; color: var(--muted); line-height: 1.5; padding: 4px 4px 0; }
+  .state { text-align: center; color: var(--muted); padding: 60px 0; }
+  .state button { margin-top: 12px; border: none; font-family: inherit; background: var(--elev); color: var(--ink2); border-radius: 12px; padding: 10px 20px; font-size: 0.9rem; cursor: pointer; }
+</style>
+</head>
+<body>
+  <header>
+    <a href="index.html">← Tracker</a>
+    <h1>📈 Sleep Analytics</h1>
+    <div class="spacer"></div>
+  </header>
+
+  <div id="tip"></div>
+  <div id="app"><div class="state">Loading…</div></div>
+
+<script>
+"use strict";
+const base = "https://uwweesqirduxjgaptjyq.supabase.co/functions/v1/app";
+const TZ = "Asia/Jerusalem";
+const NIGHT_START = 17;
+const NAP_BOUNDARY = 15 * 60;          // sleep starting after 08:00 Israel (offset 900) = nap
+const MORNING_MIN = 12 * 60;           // a final wake at/after 05:00 counts as the morning wake
+const EMOJI = { breastfed: "🤱", bottle: "🍼", solid_food: "🍽️", pain_med: "💊" };
+const NAMES = { breastfed: "Breastfed", bottle: "Bottle", solid_food: "Solid food", pain_med: "Pain meds", woke_up: "Woke up", woke_slept: "Back to sleep", fell_asleep: "Fell asleep" };
+
+const partsFmt = new Intl.DateTimeFormat("en-GB", {
+  timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit",
+  hour: "2-digit", minute: "2-digit", hour12: false, hourCycle: "h23",
+});
+function israelParts(dateObj) {
+  const p = {};
+  for (const { type, value } of partsFmt.formatToParts(dateObj)) p[type] = value;
+  return { y: +p.year, m: +p.month, d: +p.day, hh: +p.hour % 24, mm: +p.minute };
+}
+function shiftDate(dateStr, days) {
+  const d = new Date(dateStr + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+function pad(n) { return String(n).padStart(2, "0"); }
+function nightOf(parts) {
+  const ds = `${parts.y}-${pad(parts.m)}-${pad(parts.d)}`;
+  return parts.hh >= NIGHT_START ? ds : shiftDate(ds, -1);
+}
+function offsetOf(parts) {
+  return ((parts.hh - NIGHT_START + 24) % 24) * 60 + parts.mm;
+}
+function minToClock(min) {
+  const h = (NIGHT_START + Math.floor(min / 60)) % 24;
+  return pad(h) + ":" + pad(Math.round(min % 60));
+}
+function durFmt(min) {
+  min = Math.round(min);
+  const h = Math.floor(min / 60), m = min % 60;
+  return h ? `${h}h ${pad(m)}m` : `${m}m`;
+}
+function dateLabel(ds, long) {
+  return new Date(ds + "T12:00:00Z").toLocaleDateString("en-GB", {
+    weekday: "short", day: "numeric", month: long ? "short" : "numeric", timeZone: "UTC",
+  });
+}
+function mean(arr) { return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null; }
+function median(arr) {
+  if (!arr.length) return null;
+  const s = [...arr].sort((a, b) => a - b);
+  return s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2;
+}
+
+// ---------- derive per-night stats ----------
+function deriveNight(date, evs, isCurrent, nowOffset) {
+  evs.sort((a, b) => a.min - b.min);
+  const segs = [];
+  let open = null;
+  for (const e of evs) {
+    if (e.type === "fell_asleep") {
+      if (!open) open = { start: e.min };
+    } else if (e.type === "woke_up" || e.type === "woke_slept") {
+      if (open) { segs.push({ start: open.start, end: e.min }); open = null; }
+      if (e.type === "woke_slept") open = { start: e.min };
+    }
+  }
+  let openSeg = null;
+  if (open) {
+    if (isCurrent) segs.push({ start: open.start, end: Math.max(open.start, nowOffset), ongoing: true });
+    else openSeg = { start: open.start, end: Math.min(NAP_BOUNDARY, 1440) };
+  }
+  for (const s of segs) s.nap = s.start >= NAP_BOUNDARY;
+  const nightSegs = segs.filter(s => !s.nap);
+  // a "night sleep" running past 09:30 almost certainly means the morning wake wasn't logged
+  for (const s of nightSegs) if (s.end > NAP_BOUNDARY + 90) s.unknownEnd = true;
+
+  const firstSleep = evs.find(e => e.type === "fell_asleep");
+  const bedtimeMin = nightSegs.length ? nightSegs[0].start : (firstSleep ? firstSleep.min : null);
+
+  const lastNight = nightSegs[nightSegs.length - 1];
+  let morningWake = null;
+  if (lastNight && !lastNight.ongoing && !lastNight.unknownEnd && lastNight.end >= MORNING_MIN) morningWake = lastNight.end;
+
+  const nightEnd = morningWake ?? NAP_BOUNDARY;
+  const wakes = evs.filter(e => e.type === "woke_up" || e.type === "woke_slept");
+  const wakeUps = wakes.filter(e =>
+    (bedtimeMin === null || e.min > bedtimeMin) && e.min < nightEnd
+  ).length;
+
+  const known = nightSegs.filter(s => !s.unknownEnd);
+  const longestStretch = known.length ? Math.max(...known.map(s => s.end - s.start)) : null;
+  const totalNightSleep = morningWake !== null && !openSeg
+    ? known.reduce((a, s) => a + (s.end - s.start), 0) : null;
+
+  const feeds = evs.filter(e => e.type === "breastfed" && e.min < nightEnd).length;
+  const bottles = evs.filter(e => e.type === "bottle").length;
+  const solid = evs.find(e => e.type === "solid_food") || null;
+  const meds = evs.filter(e => e.type === "pain_med");
+
+  return {
+    date, events: evs, segs, openSeg, isCurrent,
+    bedtimeMin, morningWake, wakeUps, longestStretch, totalNightSleep,
+    feeds, bottles, solid, meds,
+    hasSleepData: nightSegs.length > 0 || openSeg !== null,
+  };
+}
+
+// ---------- state & data ----------
+const state = { byDate: new Map(), currentNight: null, nowOffset: 0, range: 14, notes: new Map() };
+
+async function loadData() {
+  const app = document.getElementById("app");
+  try {
+    const r = await fetch(base + "/api/analytics");
+    const d = await r.json();
+    if (!d.events) throw 0;
+    const nowP = israelParts(new Date());
+    state.currentNight = d.currentNight || nightOf(nowP);
+    state.nowOffset = offsetOf(nowP);
+    for (const n of d.notes || []) state.notes.set(n.night_date, n.note || "");
+
+    const grouped = new Map();
+    for (const ev of d.events) {
+      const p = israelParts(new Date(ev.created_at));
+      const night = nightOf(p);
+      if (!grouped.has(night)) grouped.set(night, []);
+      grouped.get(night).push({ type: ev.event_type, min: offsetOf(p), time: minToClock(offsetOf(p)), note: ev.note || "" });
+    }
+    state.byDate = new Map();
+    for (const [date, evs] of grouped) {
+      state.byDate.set(date, deriveNight(date, evs, date === state.currentNight, state.nowOffset));
+    }
+    render();
+  } catch {
+    app.innerHTML = '<div class="state">Failed to load data<br><button onclick="loadData()">Retry</button></div>';
+  }
+}
+
+function nightsInRange() {
+  const dates = [...state.byDate.keys()].sort();
+  if (!dates.length) return { rows: [], prev: [] };
+  const endD = state.currentNight;
+  const startD = state.range === Infinity ? dates[0] : shiftDate(endD, -(state.range - 1));
+  const rows = [], prev = [];
+  for (let d = startD; d <= endD; d = shiftDate(d, 1)) rows.push(state.byDate.get(d) || { date: d, empty: true });
+  if (state.range !== Infinity) {
+    for (let i = 1; i <= state.range; i++) {
+      const n = state.byDate.get(shiftDate(startD, -i));
+      if (n) prev.push(n);
+    }
+  }
+  return { rows, prev };
+}
+const statNights = rows => rows.filter(n => !n.empty && (!n.isCurrent || n.morningWake !== null));
+const loggedNights = rows => rows.filter(n => !n.empty);
+
+// ---------- tooltip ----------
+const tip = document.getElementById("tip");
+function showTip(evt, title, pairs) {
+  tip.textContent = "";
+  if (title) {
+    const t = document.createElement("div");
+    t.className = "t-title"; t.textContent = title;
+    tip.appendChild(t);
+  }
+  for (const [label, value] of pairs) {
+    const row = document.createElement("div");
+    row.className = "t-row";
+    const l = document.createElement("span"); l.textContent = label;
+    const v = document.createElement("b"); v.textContent = value;
+    row.append(l, v);
+    tip.appendChild(row);
+  }
+  tip.style.display = "block";
+  moveTip(evt);
+}
+function moveTip(evt) {
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = evt.clientX + 14, y = evt.clientY + 14;
+  if (x + w > innerWidth - 8) x = evt.clientX - w - 14;
+  if (y + h > innerHeight - 8) y = evt.clientY - h - 14;
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+}
+function hideTip() { tip.style.display = "none"; }
+
+// ---------- svg helpers ----------
+const NS = "http://www.w3.org/2000/svg";
+function S(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function txt(parent, x, y, str, attrs = {}) {
+  const t = S("text", { x, y, fill: "var(--muted)", "font-size": 10.5, ...attrs }, parent);
+  t.textContent = str;
+  return t;
+}
+function roundedTopBar(parent, x, y, w, h, fill) {
+  const r = Math.min(4, w / 2, h);
+  const p = S("path", {
+    d: `M${x},${y + h} L${x},${y + r} Q${x},${y} ${x + r},${y} L${x + w - r},${y} Q${x + w},${y} ${x + w},${y + r} L${x + w},${y + h} Z`,
+    fill,
+  }, parent);
+  return p;
+}
+
+// ---------- render ----------
+function render() {
+  const { rows, prev } = nightsInRange();
+  const app = document.getElementById("app");
+  app.innerHTML = "";
+  if (!rows.length) { app.innerHTML = '<div class="state">No data yet — log a few nights first 🌙</div>'; return; }
+
+  app.appendChild(filterRow());
+  app.appendChild(tilesEl(statNights(rows), statNights(prev)));
+
+  app.appendChild(card("night-timeline", "Nights at a glance",
+    "17:00 → 17:00 · dark blue = night sleep, light blue = naps · gaps = awake"));
+  app.appendChild(card("chart-wakes", "Wake-ups per night", "wakes between falling asleep and the morning wake"));
+  app.appendChild(card("chart-stretch", "Longest sleep stretch", "longest unbroken night sleep, in hours"));
+  app.appendChild(card("chart-bedtime", "Bedtime", "when the first night sleep started"));
+
+  const ins = document.createElement("div");
+  ins.className = "card";
+  ins.innerHTML = '<h2>What goes with better sleep?</h2><div class="sub">Averages on nights with vs without each factor · correlation, not causation — small samples mislead</div><div class="insights" id="insights"></div>';
+  app.appendChild(ins);
+
+  const det = document.createElement("details");
+  det.innerHTML = '<summary>Table view — every night</summary><div class="tablewrap" id="nighttable"></div>';
+  app.appendChild(det);
+
+  const foot = document.createElement("div");
+  foot.className = "foot";
+  foot.textContent = "How it’s computed: a night runs 17:00→17:00 (Israel time). Sleep starting before 08:00 is night sleep; later is a nap. The last wake after 05:00 is the morning wake. Sleep with no logged end is drawn faded and skipped in stretch averages; total night sleep is only counted when the morning wake was logged. Tonight joins the averages once its morning wake is logged.";
+  app.appendChild(foot);
+
+  renderTimeline(rows);
+  renderWakes(rows);
+  renderStretch(rows);
+  renderBedtime(rows);
+  renderInsights(statNights(rows));
+  renderTable(loggedNights(rows));
+}
+
+function filterRow() {
+  const div = document.createElement("div");
+  div.className = "filters";
+  for (const [label, val] of [["Last 7 nights", 7], ["Last 14", 14], ["Last 30", 30], ["All", Infinity]]) {
+    const b = document.createElement("button");
+    b.textContent = label;
+    if (state.range === val) b.className = "sel";
+    b.onclick = () => { state.range = val; render(); };
+    div.appendChild(b);
+  }
+  return div;
+}
+
+function tilesEl(nights, prevNights) {
+  const div = document.createElement("div");
+  div.className = "tiles";
+  const defs = [
+    ["Avg wake-ups / night", n => n.wakeUps, v => v.toFixed(1), -1],
+    ["Avg longest stretch", n => n.longestStretch, durFmt, +1],
+    ["Avg bedtime", n => n.bedtimeMin, minToClock, 0],
+    ["Avg night sleep", n => n.totalNightSleep, durFmt, +1],
+  ];
+  for (const [label, get, fmt, goodDir] of defs) {
+    const cur = mean(nights.map(get).filter(v => v !== null && v !== undefined));
+    const prv = mean(prevNights.map(get).filter(v => v !== null && v !== undefined));
+    const tile = document.createElement("div");
+    tile.className = "tile";
+    const l = document.createElement("div"); l.className = "lbl"; l.textContent = label;
+    const v = document.createElement("div"); v.className = "val"; v.textContent = cur === null ? "—" : fmt(cur);
+    tile.append(l, v);
+    if (cur !== null && prv !== null && prevNights.length >= 3) {
+      const d = cur - prv;
+      const el = document.createElement("div");
+      el.className = "delta";
+      if (goodDir !== 0 && Math.abs(d) > 0.05) el.className += (d * goodDir > 0 ? " good" : " bad");
+      const arrow = Math.abs(d) < 0.05 ? "＝" : (d > 0 ? "▲" : "▼");
+      const mag = label.includes("wake-ups") ? Math.abs(d).toFixed(1)
+        : label.includes("bedtime") ? durFmt(Math.abs(d))
+        : durFmt(Math.abs(d));
+      el.textContent = `${arrow} ${mag} vs previous ${prevNights.length} nights`;
+      tile.appendChild(el);
+    }
+    div.appendChild(tile);
+  }
+  return div;
+}
+
+function card(id, title, sub) {
+  const c = document.createElement("div");
+  c.className = "card";
+  const h = document.createElement("h2"); h.textContent = title;
+  const s = document.createElement("div"); s.className = "sub"; s.textContent = sub;
+  const body = document.createElement("div"); body.id = id;
+  c.append(h, s, body);
+  return c;
+}
+
+function chartFrame(mountId, height, ml, mr) {
+  const mount = document.getElementById(mountId);
+  mount.innerHTML = "";
+  const W = Math.max(300, mount.clientWidth || mount.parentElement.clientWidth - 32);
+  const svg = S("svg", { viewBox: `0 0 ${W} ${height}`, width: W, height });
+  mount.appendChild(svg);
+  return { svg, W, plotX: ml, plotW: W - ml - mr };
+}
+
+function renderTimeline(rows) {
+  const nights = [...rows].reverse();
+  const rowH = nights.length > 24 ? 22 : 28;
+  const top = 22, ml = 66, mr = 10;
+  const H = top + nights.length * rowH + 6;
+  const { svg, plotX, plotW } = chartFrame("night-timeline", H, ml, mr);
+  const x = min => plotX + (min / 1440) * plotW;
+
+  for (let h = 0; h <= 24; h += 3) {
+    S("line", { x1: x(h * 60), x2: x(h * 60), y1: top - 4, y2: H - 6, stroke: "var(--grid)", "stroke-width": 1 }, svg);
+    txt(svg, x(h * 60), top - 9, minToClock(h * 60), { "text-anchor": "middle" });
+  }
+
+  nights.forEach((n, i) => {
+    const y = top + i * rowH, cy = y + rowH / 2;
+    txt(svg, plotX - 8, cy + 3.5, n.isCurrent ? "Tonight" : dateLabel(n.date), {
+      "text-anchor": "end", fill: n.isCurrent ? "var(--ink2)" : "var(--muted)", "font-size": 10.5,
+    });
+    if (n.empty) {
+      txt(svg, plotX + 6, cy + 3.5, "no data", { "font-size": 9.5, fill: "var(--axis)" });
+      return;
+    }
+    const barH = 12, by = cy - barH / 2;
+    for (const s of n.segs) {
+      const x1 = x(s.start) + 1, x2 = Math.max(x(s.end) - 1, x1 + 1.5);
+      S("rect", {
+        x: x1, y: by, width: x2 - x1, height: barH, rx: 4,
+        fill: s.nap ? "var(--nap)" : "var(--sleep)",
+        opacity: s.unknownEnd ? 0.3 : s.ongoing ? 0.85 : 1,
+      }, svg);
+    }
+    if (n.openSeg) {
+      const x1 = x(n.openSeg.start) + 1, x2 = Math.max(x(n.openSeg.end) - 1, x1 + 1.5);
+      S("rect", { x: x1, y: by, width: x2 - x1, height: barH, rx: 4, fill: "var(--sleep)", opacity: 0.3 }, svg);
+    }
+
+    let lastX = -99, flip = false;
+    for (const e of n.events) {
+      if (!EMOJI[e.type]) continue;
+      const ex = x(e.min);
+      flip = ex - lastX < 13 ? !flip : false;
+      lastX = ex;
+      const ey = by - (flip ? 11 : 2);
+      txt(svg, ex, ey, EMOJI[e.type], { "text-anchor": "middle", "font-size": 10 });
+      const hit = S("circle", { cx: ex, cy: ey - 3, r: 11, fill: "transparent" }, svg);
+      hit.style.pointerEvents = "all";
+      hit.addEventListener("pointermove", evt => showTip(evt, `${EMOJI[e.type]} ${NAMES[e.type]}`, [["Time", e.time]]));
+      hit.addEventListener("pointerleave", hideTip);
+    }
+
+    const hl = S("rect", { x: plotX, y, width: plotW, height: rowH, fill: "transparent" }, svg);
+    hl.addEventListener("pointermove", evt => {
+      hl.setAttribute("fill", "rgba(255,255,255,0.04)");
+      const pairs = [
+        ["Asleep at", n.bedtimeMin !== null ? minToClock(n.bedtimeMin) : "—"],
+        ["Morning wake", n.morningWake !== null ? minToClock(n.morningWake) : (n.isCurrent ? "ongoing" : "not logged")],
+        ["Wake-ups", String(n.wakeUps)],
+        ["Longest stretch", n.longestStretch !== null ? durFmt(n.longestStretch) : "—"],
+        ["Night sleep", n.totalNightSleep !== null ? durFmt(n.totalNightSleep) : "—"],
+        ["Feeds 🤱 / bottles 🍼", `${n.feeds} / ${n.bottles}`],
+      ];
+      if (n.solid) pairs.push(["Solid food", n.solid.time]);
+      if (n.meds.length) pairs.push(["Pain meds", n.meds.map(m => m.time).join(", ")]);
+      const note = state.notes.get(n.date);
+      if (note) pairs.push(["Note", note.length > 60 ? note.slice(0, 60) + "…" : note]);
+      showTip(evt, dateLabel(n.date, true), pairs);
+    });
+    hl.addEventListener("pointerleave", () => { hl.setAttribute("fill", "transparent"); hideTip(); });
+  });
+
+  const legend = document.createElement("div");
+  legend.className = "legend";
+  legend.innerHTML =
+    '<span><span class="sw" style="background:var(--sleep)"></span>Night sleep</span>' +
+    '<span><span class="sw" style="background:var(--nap)"></span>Nap</span>' +
+    '<span><span class="sw" style="background:var(--sleep);opacity:.3"></span>Morning wake not logged</span>' +
+    '<span>🤱 Breastfed</span><span>🍼 Bottle</span><span>🍽️ Solid food</span><span>💊 Pain meds</span>';
+  document.getElementById("night-timeline").appendChild(legend);
+}
+
+function xBand(rows, plotX, plotW) {
+  const n = rows.length;
+  const step = plotW / n;
+  return { step, cx: i => plotX + step * (i + 0.5) };
+}
+function dateTicks(svg, rows, cx, y) {
+  const every = Math.max(1, Math.ceil(rows.length / 7));
+  rows.forEach((n, i) => {
+    if (i % every === 0 || n.isCurrent) {
+      txt(svg, cx(i), y, n.isCurrent ? "tonight" : dateLabel(n.date).replace(/^\w+ /, ""), { "text-anchor": "middle", "font-size": 9.5 });
+    }
+  });
+}
+
+function renderWakes(rows) {
+  const top = 8, bottom = 20, ml = 26, mr = 8, plotH = 120;
+  const H = top + plotH + bottom;
+  const { svg, plotX, plotW } = chartFrame("chart-wakes", H, ml, mr);
+  const maxV = Math.max(3, ...rows.map(n => n.empty ? 0 : n.wakeUps));
+  const y = v => top + plotH - (v / maxV) * plotH;
+  const tickStep = maxV > 8 ? 2 : 1;
+  for (let v = 0; v <= maxV; v += tickStep) {
+    S("line", { x1: plotX, x2: plotX + plotW, y1: y(v), y2: y(v), stroke: v === 0 ? "var(--axis)" : "var(--grid)", "stroke-width": 1 }, svg);
+    txt(svg, plotX - 6, y(v) + 3.5, String(v), { "text-anchor": "end" });
+  }
+  const { step, cx } = xBand(rows, plotX, plotW);
+  const bw = Math.min(24, Math.max(3, step - 2));
+  rows.forEach((n, i) => {
+    if (n.empty) return;
+    const usable = !n.isCurrent || n.morningWake !== null;
+    const h = Math.max(2, (n.wakeUps / maxV) * plotH);
+    const bar = roundedTopBar(svg, cx(i) - bw / 2, y(0) - h, bw, h, "var(--sleep)");
+    if (!usable) bar.setAttribute("opacity", 0.3);
+    const hit = S("rect", { x: cx(i) - step / 2, y: top, width: step, height: plotH + bottom, fill: "transparent" }, svg);
+    hit.addEventListener("pointermove", evt => {
+      bar.setAttribute("fill", "var(--sleep-hover)");
+      showTip(evt, n.isCurrent ? "Tonight" : dateLabel(n.date, true),
+        [["Wake-ups", String(n.wakeUps) + (usable ? "" : " (incomplete)")]]);
+    });
+    hit.addEventListener("pointerleave", () => { bar.setAttribute("fill", "var(--sleep)"); hideTip(); });
+  });
+  dateTicks(svg, rows, cx, H - 5);
+}
+
+function lineChart(mountId, rows, get, fmtV, yTicks, yLabel) {
+  const top = 8, bottom = 20, ml = 44, mr = 10, plotH = 130;
+  const H = top + plotH + bottom;
+  const { svg, plotX, plotW } = chartFrame(mountId, H, ml, mr);
+  const vals = rows.map(n => n.empty ? null : get(n));
+  const present = vals.filter(v => v !== null);
+  if (!present.length) { txt(svg, plotX + plotW / 2, H / 2, "no data in range", { "text-anchor": "middle" }); return; }
+  const { lo, hi, ticks } = yTicks(Math.min(...present), Math.max(...present));
+  const y = v => top + plotH - ((v - lo) / (hi - lo)) * plotH;
+  for (const t of ticks) {
+    S("line", { x1: plotX, x2: plotX + plotW, y1: y(t), y2: y(t), stroke: "var(--grid)", "stroke-width": 1 }, svg);
+    txt(svg, plotX - 6, y(t) + 3.5, yLabel(t), { "text-anchor": "end" });
+  }
+  const { step, cx } = xBand(rows, plotX, plotW);
+  let d = "", pen = false;
+  vals.forEach((v, i) => {
+    if (v === null) { pen = false; return; }
+    d += (pen ? "L" : "M") + cx(i).toFixed(1) + "," + y(v).toFixed(1);
+    pen = true;
+  });
+  S("path", { d, fill: "none", stroke: "var(--sleep)", "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
+  const dots = [];
+  vals.forEach((v, i) => {
+    if (v === null) { dots.push(null); return; }
+    const solo = (i === 0 || vals[i - 1] === null) && (i === vals.length - 1 || vals[i + 1] === null);
+    const lastIdx = vals.length - 1 - [...vals].reverse().findIndex(x => x !== null);
+    if (solo || i === lastIdx) {
+      S("circle", { cx: cx(i), cy: y(v), r: 4.5, fill: "var(--sleep)", stroke: "var(--surface)", "stroke-width": 2 }, svg);
+    }
+    dots.push({ x: cx(i), y: y(v) });
+  });
+  const cross = S("line", { y1: top, y2: top + plotH, stroke: "var(--axis)", "stroke-width": 1, visibility: "hidden" }, svg);
+  const focus = S("circle", { r: 4.5, fill: "var(--sleep)", stroke: "var(--surface)", "stroke-width": 2, visibility: "hidden" }, svg);
+  const overlay = S("rect", { x: plotX, y: top, width: plotW, height: plotH + bottom, fill: "transparent" }, svg);
+  overlay.addEventListener("pointermove", evt => {
+    const rect = svg.getBoundingClientRect();
+    const px = evt.clientX - rect.left;
+    let best = -1, bd = 1e9;
+    rows.forEach((n, i) => { const dd = Math.abs(cx(i) - px); if (vals[i] !== null && dd < bd) { bd = dd; best = i; } });
+    if (best < 0) return;
+    cross.setAttribute("x1", cx(best)); cross.setAttribute("x2", cx(best));
+    cross.setAttribute("visibility", "visible");
+    focus.setAttribute("cx", dots[best].x); focus.setAttribute("cy", dots[best].y);
+    focus.setAttribute("visibility", "visible");
+    showTip(evt, rows[best].isCurrent ? "Tonight" : dateLabel(rows[best].date, true), [[fmtV.label, fmtV.fmt(vals[best])]]);
+  });
+  overlay.addEventListener("pointerleave", () => {
+    cross.setAttribute("visibility", "hidden"); focus.setAttribute("visibility", "hidden"); hideTip();
+  });
+  dateTicks(svg, rows, cx, H - 5);
+}
+
+function renderStretch(rows) {
+  lineChart("chart-stretch", rows, n => n.longestStretch,
+    { label: "Longest stretch", fmt: durFmt },
+    (lo, hi) => {
+      const t = 60;
+      const l = Math.floor(lo / t) * t, h = Math.max(l + t, Math.ceil(hi / t) * t);
+      const ticks = [];
+      const stepT = (h - l) / t > 6 ? 2 * t : t;
+      for (let v = l; v <= h; v += stepT) ticks.push(v);
+      return { lo: l, hi: h, ticks };
+    },
+    t => (t / 60) + "h");
+}
+
+function renderBedtime(rows) {
+  lineChart("chart-bedtime", rows, n => n.bedtimeMin,
+    { label: "Asleep at", fmt: minToClock },
+    (lo, hi) => {
+      const t = 30;
+      const l = Math.floor(lo / t) * t, h = Math.max(l + t, Math.ceil(hi / t) * t);
+      const ticks = [];
+      const stepT = (h - l) / t > 6 ? 2 * t : t;
+      for (let v = l; v <= h; v += stepT) ticks.push(v);
+      return { lo: l, hi: h, ticks };
+    },
+    minToClock);
+}
+
+// ---------- insights ----------
+function renderInsights(nights) {
+  const mount = document.getElementById("insights");
+  mount.innerHTML = "";
+  const withBed = nights.filter(n => n.bedtimeMin !== null);
+  const medBed = median(withBed.map(n => n.bedtimeMin));
+  const factors = [
+    ["🍽️ Solid food dinner", n => !!n.solid, "with", "without"],
+    ["🍼 Bottle", n => n.bottles > 0, "with", "without"],
+    ["💊 Pain meds", n => n.meds.length > 0, "with", "without"],
+  ];
+  if (medBed !== null) {
+    factors.push([`🛌 Bedtime before ${minToClock(medBed)}`, n => n.bedtimeMin !== null && n.bedtimeMin <= medBed, "earlier", "later"]);
+  }
+  const metrics = [
+    ["Wake-ups (lower is better)", n => n.wakeUps, v => v.toFixed(1), -1],
+    ["Longest stretch (higher is better)", n => n.longestStretch, v => durFmt(v), +1],
+  ];
+
+  for (const [title, pred, aName, bName] of factors) {
+    const A = nights.filter(pred), B = nights.filter(n => !pred(n));
+    const el = document.createElement("div");
+    el.className = "insight";
+    const h = document.createElement("h3"); h.textContent = title;
+    el.appendChild(h);
+    if (A.length < 3 || B.length < 3) {
+      const nd = document.createElement("div");
+      nd.className = "nodata";
+      nd.textContent = `Not enough nights to compare yet (${A.length} ${aName} vs ${B.length} ${bName}).`;
+      el.appendChild(nd);
+      mount.appendChild(el);
+      continue;
+    }
+    const verdictBits = [];
+    for (const [mLabel, get, fmt, goodDir] of metrics) {
+      const av = mean(A.map(get).filter(v => v !== null));
+      const bv = mean(B.map(get).filter(v => v !== null));
+      if (av === null || bv === null) continue;
+      const cap = document.createElement("div");
+      cap.className = "metric"; cap.textContent = mLabel;
+      el.appendChild(cap);
+      const maxV = Math.max(av, bv, 0.001);
+      for (const [name, val, group, color] of [[aName, av, A, "var(--sleep)"], [bName, bv, B, "var(--nap)"]]) {
+        const row = document.createElement("div");
+        row.className = "cmp-row";
+        const who = document.createElement("span"); who.className = "who"; who.textContent = `${name} · n=${group.length}`;
+        const bar = document.createElement("div"); bar.className = "bar";
+        bar.style.width = (val / maxV * 100).toFixed(1) + "%";
+        bar.style.background = color;
+        const num = document.createElement("span"); num.className = "num"; num.textContent = fmt(val);
+        row.append(who, bar, num);
+        el.appendChild(row);
+      }
+      const d = av - bv;
+      const meaningful = mLabel.startsWith("Wake") ? Math.abs(d) >= 0.4 : Math.abs(d) >= 20;
+      if (meaningful) {
+        const better = d * goodDir > 0;
+        const amount = mLabel.startsWith("Wake")
+          ? Math.abs(d).toFixed(1) + (d > 0 ? " more" : " fewer") + " wake-ups"
+          : durFmt(Math.abs(d)) + (d > 0 ? " longer" : " shorter") + " stretch";
+        verdictBits.push({ text: `${amount} on ${aName} nights`, good: better, up: d > 0 });
+      }
+    }
+    const v = document.createElement("div");
+    v.className = "verdict";
+    if (!verdictBits.length) v.textContent = "No clear difference so far.";
+    else for (const bit of verdictBits) {
+      const s = document.createElement("span");
+      s.className = bit.good ? "good" : "bad";
+      s.textContent = (bit.up ? "▲ " : "▼ ") + bit.text;
+      v.appendChild(s);
+      v.appendChild(document.createElement("br"));
+    }
+    el.appendChild(v);
+    mount.appendChild(el);
+  }
+}
+
+function renderTable(nights) {
+  const mount = document.getElementById("nighttable");
+  mount.innerHTML = "";
+  const table = document.createElement("table");
+  const head = table.createTHead().insertRow();
+  for (const h of ["Night", "Asleep", "Morning", "Wakes", "Longest", "Night sleep", "🤱", "🍼", "🍽️", "💊", "Note"]) {
+    const th = document.createElement("th"); th.textContent = h; head.appendChild(th);
+  }
+  const body = table.createTBody();
+  for (const n of [...nights].reverse()) {
+    const r = body.insertRow();
+    const cells = [
+      n.isCurrent ? "Tonight" : dateLabel(n.date, true),
+      n.bedtimeMin !== null ? minToClock(n.bedtimeMin) : "—",
+      n.morningWake !== null ? minToClock(n.morningWake) : "—",
+      String(n.wakeUps),
+      n.longestStretch !== null ? durFmt(n.longestStretch) : "—",
+      n.totalNightSleep !== null ? durFmt(n.totalNightSleep) : "—",
+      String(n.feeds),
+      String(n.bottles),
+      n.solid ? n.solid.time : "—",
+      n.meds.length ? n.meds.map(m => m.time).join(", ") : "—",
+      state.notes.get(n.date) || "",
+    ];
+    cells.forEach((c, i) => {
+      const td = r.insertCell();
+      td.textContent = c;
+      if (i === cells.length - 1) td.className = "note";
+    });
+  }
+  mount.appendChild(table);
+}
+
+let resizeT;
+addEventListener("resize", () => {
+  clearTimeout(resizeT);
+  resizeT = setTimeout(() => { if (state.byDate.size) render(); }, 150);
+});
+
+loadData();
+</script>
+</body>
+</html>

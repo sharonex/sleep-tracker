@@ -32,6 +32,11 @@
   #bottle { background: #2c4257; }
   #painmed { background: #55302f; }
   #reportBtn { background: #1c2438; min-height: 64px; font-size: 1.1rem; color: #b8b4d0; }
+  #analyticsBtn {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    background: #1c2438; min-height: 64px; font-size: 1.1rem; font-weight: 600;
+    color: #b8b4d0; border-radius: 20px; text-decoration: none;
+  }
   #undo { background: none; min-height: 44px; font-size: 0.9rem; color: #6f6a8a; font-weight: 400; }
   #toast {
     position: fixed; left: 50%; top: 14px; transform: translateX(-50%);
@@ -104,7 +109,10 @@
   </div>
 
   <div id="report"></div>
-  <button id="reportBtn" onclick="toggleReport()">📋 Report</button>
+  <div style="display:flex;gap:10px;">
+    <button id="reportBtn" onclick="toggleReport()" style="flex:2;">📋 Report</button>
+    <a href="analytics.html" id="analyticsBtn">📈 Analytics</a>
+  </div>
 
 <script>
 const base = "https://uwweesqirduxjgaptjyq.supabase.co/functions/v1/app";

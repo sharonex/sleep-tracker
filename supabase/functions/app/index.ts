@@ -136,6 +136,30 @@ async function saveNightNote(date: string, note: string): Promise<Response> {
   return json({ ok: res.ok });
 }
 
+// All rows from a PostgREST endpoint, paging past the server's max-rows cap
+async function fetchAll(url: string): Promise<unknown[]> {
+  const page = 1000;
+  const out: unknown[] = [];
+  for (let from = 0; ; from += page) {
+    const res = await fetch(url, {
+      headers: { ...dbHeaders, Range: `${from}-${from + page - 1}` },
+    });
+    const rows = await res.json();
+    if (!Array.isArray(rows)) break;
+    out.push(...rows);
+    if (rows.length < page) break;
+  }
+  return out;
+}
+
+async function analytics(): Promise<Response> {
+  const [events, notes] = await Promise.all([
+    fetchAll(`${REST}?select=id,event_type,created_at,note&order=created_at.asc`),
+    fetchAll(`${NOTES_REST}?select=night_date,note`),
+  ]);
+  return json({ events, notes, currentNight: currentNightDate() });
+}
+
 async function report(dateStr?: string): Promise<Response> {
   const date = dateStr ?? currentNightDate();
   const start = nightStartOf(date);
@@ -193,6 +217,7 @@ Deno.serve(async (req) => {
   if (req.method === "GET" && path === "/api/report") {
     return report(url.searchParams.get("date") ?? undefined);
   }
+  if (req.method === "GET" && path === "/api/analytics") return analytics();
 
   return json({ error: "not found" }, 404);
 });
