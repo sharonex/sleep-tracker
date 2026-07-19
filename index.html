@@ -29,6 +29,8 @@
   #sleep { background: #223055; }
   #feed { background: #4a2f55; }
   #solid { background: #1e3a34; }
+  #bottle { background: #2c4257; }
+  #painmed { background: #55302f; }
   #reportBtn { background: #1c2438; min-height: 64px; font-size: 1.1rem; color: #b8b4d0; }
   #undo { background: none; min-height: 44px; font-size: 0.9rem; color: #6f6a8a; font-weight: 400; }
   #toast {
@@ -91,6 +93,12 @@
       <button class="big" id="solid" onclick="log('solid_food')">
         <span class="emoji">🍽️</span><span>Solid food dinner</span>
       </button>
+      <button class="big" id="bottle" onclick="log('bottle')">
+        <span class="emoji">🍼</span><span>Bottle</span>
+      </button>
+      <button class="big" id="painmed" onclick="log('pain_med')">
+        <span class="emoji">💊</span><span>Pain medication</span>
+      </button>
     </div>
     <button id="undo" onclick="undo()">↩︎ Undo last</button>
   </div>
@@ -106,6 +114,8 @@ const LABELS = {
   fell_asleep: "🛌 Fell asleep",
   woke_up: "☀️ Woke up",
   solid_food: "🍽️ Solid food",
+  bottle: "🍼 Bottle",
+  pain_med: "💊 Pain meds",
 };
 let showingReport = false;
 let viewDate = null;   // YYYY-MM-DD of the night being viewed; null = current night

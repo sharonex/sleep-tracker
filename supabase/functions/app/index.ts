@@ -4,7 +4,7 @@ const REST = `${SUPABASE_URL}/rest/v1/sleep_events`;
 const NOTES_REST = `${SUPABASE_URL}/rest/v1/night_notes`;
 const TZ = "Asia/Jerusalem";
 const NIGHT_START_HOUR = 17;
-const EVENT_TYPES = ["woke_slept", "breastfed", "fell_asleep", "woke_up", "solid_food"];
+const EVENT_TYPES = ["woke_slept", "breastfed", "fell_asleep", "woke_up", "solid_food", "bottle", "pain_med"];
 const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 const dbHeaders = {
