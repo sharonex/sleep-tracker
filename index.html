@@ -22,11 +22,13 @@
     color: inherit; cursor: pointer; touch-action: manipulation;
   }
   button:active { transform: scale(0.97); }
-  .big { flex: 1; min-height: 100px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
-  .big .emoji { font-size: 2.6rem; }
+  #grid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .big { min-height: 100px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; font-size: 1.05rem; }
+  .big .emoji { font-size: 2.4rem; }
+  #wake { background: #4a4020; }
   #sleep { background: #223055; }
   #feed { background: #4a2f55; }
-  #bedtime { background: #1e3a34; min-height: 64px; font-size: 1.1rem; }
+  #solid { background: #1e3a34; }
   #reportBtn { background: #1c2438; min-height: 64px; font-size: 1.1rem; color: #b8b4d0; }
   #undo { background: none; min-height: 44px; font-size: 0.9rem; color: #6f6a8a; font-weight: 400; }
   #toast {
@@ -36,28 +38,38 @@
   }
   #toast.show { opacity: 1; }
   #report { display: none; flex: 1; overflow-y: auto; background: #171b2e; border-radius: 20px; padding: 18px; }
-  #report h2 { font-size: 1rem; color: #b8b4d0; margin-bottom: 12px; }
+  .nav { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .nav h2 { flex: 1; font-size: 1rem; color: #b8b4d0; text-align: center; }
+  .nav button { width: 44px; min-width: 44px; height: 40px; border-radius: 12px; background: #222741; font-size: 1.1rem; }
+  .nav button:disabled { opacity: 0.3; }
   .summary { display: flex; gap: 8px; margin-bottom: 16px; }
   .stat { flex: 1; background: #222741; border-radius: 14px; padding: 12px 6px; text-align: center; }
   .stat .num { font-size: 1.5rem; font-weight: 700; }
   .stat .label { font-size: 0.75rem; color: #8d88a8; margin-top: 2px; }
-  .event { display: flex; align-items: center; gap: 10px; padding: 8px 2px; border-bottom: 1px solid #232841; font-size: 1rem; }
+  .event { display: flex; align-items: center; gap: 10px; padding: 8px 2px; border-bottom: 1px solid #232841; font-size: 1rem; flex-wrap: wrap; }
   .event:last-child { border-bottom: none; }
   .event .t { color: #8d88a8; font-variant-numeric: tabular-nums; min-width: 52px; }
   .event .lbl { flex: 1; }
+  .event .note { flex-basis: 100%; font-size: 0.85rem; color: #9a94b8; padding: 0 0 4px 62px; font-weight: 400; }
   .icon-btn {
     width: 40px; min-width: 40px; height: 40px; border-radius: 12px;
     background: #222741; font-size: 1rem; display: flex; align-items: center; justify-content: center;
   }
   .icon-btn.danger { color: #d98a8a; }
-  input[type="time"], select {
+  input[type="time"], input[type="text"], select, textarea {
     background: #222741; color: #e8e6f0; border: 1px solid #363c5e; border-radius: 10px;
     font-family: inherit; font-size: 1rem; padding: 8px; min-height: 40px;
     color-scheme: dark;
   }
+  .editrow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 8px 2px; border-bottom: 1px solid #232841; }
+  .editrow input[type="text"] { flex-basis: 100%; }
   .addrow { display: flex; gap: 8px; align-items: center; margin-top: 14px; }
   .addrow select { flex: 1; min-width: 0; }
   #addBtn { background: none; min-height: 44px; font-size: 0.95rem; color: #6f6a8a; font-weight: 400; margin-top: 10px; }
+  .daynote { margin-top: 18px; }
+  .daynote h3 { font-size: 0.85rem; color: #8d88a8; margin-bottom: 6px; font-weight: 600; }
+  .daynote textarea { width: 100%; min-height: 70px; resize: vertical; font-size: 0.95rem; }
+  .daynote button { margin-top: 8px; min-height: 40px; font-size: 0.9rem; background: #222741; color: #b8b4d0; border-radius: 12px; }
   .empty { color: #6f6a8a; text-align: center; padding: 24px 0; }
 </style>
 </head>
@@ -66,18 +78,25 @@
   <div id="toast"></div>
 
   <div id="buttons" style="display:flex;flex-direction:column;gap:14px;flex:1;">
-    <button class="big" id="sleep" onclick="log('woke_slept')">
-      <span class="emoji">😴</span><span>Woke up &amp; back to sleep</span>
-    </button>
-    <button class="big" id="feed" onclick="log('breastfed')">
-      <span class="emoji">🤱</span><span>Woke up &amp; breastfed</span>
-    </button>
-    <button id="bedtime" onclick="log('fell_asleep')">🛌 Went to sleep</button>
+    <div id="grid">
+      <button class="big" id="wake" onclick="log('woke_up')">
+        <span class="emoji">☀️</span><span>Woke up</span>
+      </button>
+      <button class="big" id="sleep" onclick="log('fell_asleep')">
+        <span class="emoji">🛌</span><span>Went to sleep</span>
+      </button>
+      <button class="big" id="feed" onclick="log('breastfed')">
+        <span class="emoji">🤱</span><span>Breastfed</span>
+      </button>
+      <button class="big" id="solid" onclick="log('solid_food')">
+        <span class="emoji">🍽️</span><span>Solid food dinner</span>
+      </button>
+    </div>
     <button id="undo" onclick="undo()">↩︎ Undo last</button>
   </div>
 
   <div id="report"></div>
-  <button id="reportBtn" onclick="toggleReport()">📋 Night report</button>
+  <button id="reportBtn" onclick="toggleReport()">📋 Report</button>
 
 <script>
 const base = "https://uwweesqirduxjgaptjyq.supabase.co/functions/v1/app";
@@ -85,8 +104,13 @@ const LABELS = {
   woke_slept: "😴 Back to sleep",
   breastfed: "🤱 Breastfed",
   fell_asleep: "🛌 Fell asleep",
+  woke_up: "☀️ Woke up",
+  solid_food: "🍽️ Solid food",
 };
 let showingReport = false;
+let viewDate = null;   // YYYY-MM-DD of the night being viewed; null = current night
+let isCurrent = true;
+let events = [];
 
 function toast(msg, err) {
   const t = document.getElementById("toast");
@@ -103,18 +127,41 @@ function nowIsraelHHMM() {
   });
 }
 
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function shiftDate(dateStr, days) {
+  const d = new Date(dateStr + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function nightLabel() {
+  if (isCurrent) return "Tonight";
+  const d = new Date(viewDate + "T12:00:00Z");
+  return "Night of " + d.toLocaleDateString("en-GB", {
+    weekday: "short", day: "numeric", month: "short", timeZone: "UTC",
+  });
+}
+
 async function api(path, opts) {
   const r = await fetch(base + path, opts);
   return r.json();
 }
 
+function post(path, body) {
+  return api(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
 async function log(type) {
   try {
-    const d = await api("/api/event", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type }),
-    });
+    const d = await post("/api/event", { type });
     if (!d.ok) throw 0;
     toast(LABELS[type] + " · " + d.time);
   } catch { toast("Failed — try again", true); }
@@ -133,11 +180,17 @@ async function toggleReport() {
   showingReport = !showingReport;
   if (!showingReport) {
     rep.style.display = "none"; btns.style.display = "flex";
-    document.getElementById("reportBtn").textContent = "📋 Night report";
+    document.getElementById("reportBtn").textContent = "📋 Report";
     return;
   }
   btns.style.display = "none"; rep.style.display = "block";
   document.getElementById("reportBtn").textContent = "← Back";
+  viewDate = null;
+  loadReport();
+}
+
+function goNight(days) {
+  viewDate = shiftDate(viewDate, days);
   loadReport();
 }
 
@@ -145,21 +198,32 @@ async function loadReport() {
   const rep = document.getElementById("report");
   rep.innerHTML = '<div class="empty">Loading…</div>';
   try {
-    const d = await api("/api/report");
-    let html = '<h2>Tonight (since ' + d.nightStart + ')</h2>' +
+    const d = await api("/api/report" + (viewDate ? "?date=" + viewDate : ""));
+    viewDate = d.date;
+    isCurrent = d.isCurrent;
+    events = d.events;
+    let html =
+      '<div class="nav">' +
+      '<button onclick="goNight(-1)">‹</button>' +
+      '<h2>' + nightLabel() + ' (from ' + d.nightStart + ')</h2>' +
+      '<button onclick="goNight(1)"' + (isCurrent ? " disabled" : "") + '>›</button>' +
+      '</div>' +
       '<div class="summary">' +
       '<div class="stat"><div class="num">' + (d.bedtime || "—") + '</div><div class="label">🛌 asleep at</div></div>' +
-      '<div class="stat"><div class="num">' + d.wakeUps + '</div><div class="label">😴 wake-ups</div></div>' +
+      '<div class="stat"><div class="num">' + d.wakeUps + '</div><div class="label">☀️ wake-ups</div></div>' +
       '<div class="stat"><div class="num">' + d.feeds + '</div><div class="label">🤱 feeds</div></div>' +
       '</div><div id="events">';
     if (!d.events.length) {
-      html += '<div class="empty">Quiet night so far 🎉</div>';
+      html += '<div class="empty">' + (isCurrent ? "Quiet night so far 🎉" : "No events logged") + '</div>';
     } else {
       for (const e of d.events) html += eventRow(e);
     }
     html += '</div>' +
       '<button id="addBtn" onclick="showAdd()">＋ Add missed event</button>' +
-      '<div id="addForm"></div>';
+      '<div id="addForm"></div>' +
+      '<div class="daynote"><h3>📝 Note for the day</h3>' +
+      '<textarea id="dayNote" placeholder="How was the day / night?">' + esc(d.note) + '</textarea>' +
+      '<button onclick="saveDayNote()">Save note</button></div>';
     rep.innerHTML = html;
   } catch { rep.innerHTML = '<div class="empty">Failed to load report</div>'; }
 }
@@ -168,27 +232,33 @@ function eventRow(e) {
   return '<div class="event" id="ev' + e.id + '">' +
     '<span class="t">' + e.time + '</span>' +
     '<span class="lbl">' + LABELS[e.type] + '</span>' +
-    '<button class="icon-btn" onclick="editEvent(' + e.id + ',\'' + e.time + '\',\'' + e.type + '\')">✏️</button>' +
+    '<button class="icon-btn" onclick="editEvent(' + e.id + ')">✏️</button>' +
     '<button class="icon-btn danger" onclick="delEvent(' + e.id + ')">✕</button>' +
+    (e.note ? '<span class="note">' + esc(e.note) + '</span>' : '') +
     '</div>';
 }
 
-function editEvent(id, time, type) {
-  document.getElementById("ev" + id).innerHTML =
-    '<input type="time" id="t' + id + '" value="' + time + '">' +
-    '<span class="lbl">' + LABELS[type] + '</span>' +
+function editEvent(id) {
+  const e = events.find(ev => ev.id === id);
+  const el = document.getElementById("ev" + id);
+  el.className = "editrow";
+  el.innerHTML =
+    '<input type="time" id="t' + id + '" value="' + e.time + '">' +
+    '<span class="lbl">' + LABELS[e.type] + '</span>' +
     '<button class="icon-btn" onclick="saveEvent(' + id + ')">✓</button>' +
-    '<button class="icon-btn" onclick="loadReport()">✕</button>';
+    '<button class="icon-btn" onclick="loadReport()">✕</button>' +
+    '<input type="text" id="n' + id + '" placeholder="Note (optional)" value="' + esc(e.note) + '">';
 }
 
 async function saveEvent(id) {
   const time = document.getElementById("t" + id).value;
+  const note = document.getElementById("n" + id).value.trim();
   if (!time) return;
   try {
     const d = await api("/api/event/" + id, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ time }),
+      body: JSON.stringify({ time, note, date: viewDate }),
     });
     if (!d.ok) throw 0;
     toast("Updated to " + d.time);
@@ -206,14 +276,14 @@ async function delEvent(id) {
 
 function showAdd() {
   document.getElementById("addBtn").style.display = "none";
+  let options = "";
+  for (const [type, label] of Object.entries(LABELS)) {
+    options += '<option value="' + type + '">' + label + '</option>';
+  }
   document.getElementById("addForm").innerHTML =
     '<div class="addrow">' +
-    '<select id="addType">' +
-    '<option value="woke_slept">😴 Back to sleep</option>' +
-    '<option value="breastfed">🤱 Breastfed</option>' +
-    '<option value="fell_asleep">🛌 Fell asleep</option>' +
-    '</select>' +
-    '<input type="time" id="addTime" value="' + nowIsraelHHMM() + '">' +
+    '<select id="addType">' + options + '</select>' +
+    '<input type="time" id="addTime"' + (isCurrent ? ' value="' + nowIsraelHHMM() + '"' : '') + '>' +
     '<button class="icon-btn" onclick="saveAdd()">✓</button>' +
     '</div>';
 }
@@ -223,15 +293,20 @@ async function saveAdd() {
   const time = document.getElementById("addTime").value;
   if (!time) return;
   try {
-    const d = await api("/api/event", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type, time }),
-    });
+    const d = await post("/api/event", { type, time, date: viewDate });
     if (!d.ok) throw 0;
     toast(LABELS[type] + " added at " + d.time);
   } catch { toast("Failed — try again", true); }
   loadReport();
+}
+
+async function saveDayNote() {
+  const note = document.getElementById("dayNote").value.trim();
+  try {
+    const d = await post("/api/night-note", { date: viewDate, note });
+    if (!d.ok) throw 0;
+    toast("Note saved");
+  } catch { toast("Failed — try again", true); }
 }
 </script>
 </body>
